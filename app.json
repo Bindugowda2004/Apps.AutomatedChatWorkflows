@@ -1,0 +1,66 @@
+{
+    "id": "8dc16983-c23c-4086-abcf-b0d71c1f5b7f",
+    "version": "0.0.1",
+    "requiredApiVersion": "^1.44.0",
+    "iconFile": "icon.png",
+    "author": {
+        "name": "Dhairyashil Shinde",
+        "homepage": "dhairyashil10101010@gmail.com",
+        "support": "dhairyashil10101010@gmail.com"
+    },
+    "name": "AI Chat Workflows Automation",
+    "nameSlug": "ai-chat-workflows-automation",
+    "classFile": "AiChatWorkflowsAutomationApp.ts",
+    "description": "Platform for generating functional automated chat workflows using LLMs.",
+    "implements": [],
+    "permissions": [
+        {
+            "name": "user.read"
+        },
+        {
+            "name": "user.write"
+        },
+        {
+            "name": "ui.interact"
+        },
+        {
+            "name": "room.read"
+        },
+        {
+            "name": "room.write"
+        },
+        {
+            "name": "message.read"
+        },
+        {
+            "name": "message.write"
+        },
+        {
+            "name": "slashcommand"
+        },
+        {
+            "name": "api"
+        },
+        {
+            "name": "networking"
+        },
+        {
+            "name": "threads.read"
+        },
+        {
+            "name": "ui.registerButtons"
+        },
+        {
+            "name": "persistence"
+        },
+        {
+            "name": "scheduler"
+        },
+        {
+            "name": "server-setting.read"
+        },
+        {
+            "name": "server-setting.write"
+        }
+    ]
+}
