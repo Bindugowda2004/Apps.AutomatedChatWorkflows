@@ -1,4 +1,3 @@
-// constants/prompts/index.ts
 export * from "./ValidCommandPrompt";
 export * from "./CheckConditionPrompt";
 export * from "./ReasoningPrompt";
