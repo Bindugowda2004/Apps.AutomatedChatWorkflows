@@ -2,6 +2,7 @@ import {
     ValidCommandPrompt,
     ReasoningPrompt,
     AnswerIdentificationPrompt,
+    AutomationCommandCreationPrompt,
     StructuredParsingPrompt,
     CheckConditionPrompt,
     EditMessagePrompt,
@@ -30,25 +31,25 @@ export function createAnswerIdentificationPrompt(
     ).replace("{user_message}", user_message);
 }
 
-/*
-  export function createAutomationCommandCreationPrompt(
+export function createAutomationCommandCreationPrompt(
     original_request: string,
     questions: string[] | string,
     answers: string[] | string
-  ): string {
-    const questionsStr = Array.isArray(questions) 
-      ? JSON.stringify(questions) 
-      : questions;
-    const answersStr = Array.isArray(answers) 
-      ? JSON.stringify(answers) 
-      : answers;
-  
-    return AutomationCommandCreationPrompt.TEMPLATE
-      .replace('{original_request}', original_request)
-      .replace('{questions}', questionsStr)
-      .replace('{answers}', answersStr);
-  }
-  */
+): string {
+    const questionsStr = Array.isArray(questions)
+        ? JSON.stringify(questions)
+        : questions;
+    const answersStr = Array.isArray(answers)
+        ? JSON.stringify(answers)
+        : answers;
+
+    return AutomationCommandCreationPrompt.TEMPLATE.replace(
+        "{original_request}",
+        original_request
+    )
+        .replace("{questions}", questionsStr)
+        .replace("{answers}", answersStr);
+}
 
 export function createStructuredParsingPrompt(user_input: string): string {
     return StructuredParsingPrompt.TEMPLATE.replace("{user_input}", user_input);
@@ -103,13 +104,11 @@ type PromptVariables = {
         user_message: string;
     };
 
-    /*
     [AutomationCommandCreationPrompt.TEMPLATE]: {
         original_request: string;
         questions: string[] | string;
         answers: string[] | string;
     };
-    */
 
     [StructuredParsingPrompt.TEMPLATE]: {
         user_input: string;

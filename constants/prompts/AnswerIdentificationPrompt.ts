@@ -1,51 +1,87 @@
 export enum AnswerIdentificationPrompt {
     TEMPLATE = `  
-Combine the original workflow request with user-provided answers to create a **valid, unambiguous automation command**. Follow these rules:
+Analyze the user’s response to determine if they’ve answered ALL pending questions. Follow these rules:
 
-1. **Rules**:  
-   - Preserve the original structure of the workflow request.  
-   - Insert answers **exactly** where they resolve ambiguities.  
-   - Format users/channels as \`@username\`/\`#channel\`.  
-   - Add quotes around message content.  
-   - Never add explanations or notes.  
+1. **Validation Criteria**:  
+   - Check if answers match the **order and intent** of the pending questions.  
+   - Validate formatting (e.g., '@username', '#channel').  
+   - Reject incomplete/ambiguous answers (e.g., "the admin" → "which admin?").  
 
-2. Output
-- Respond with only a single string. Do not include any extra text, quotes, explanations, or formatting. 
-- Your response must be exactly one line of plain text. No prefixes, suffixes, or annotations.
-- Just return the raw output string.
+2. **Response Handling**:  
+   - If answers are valid → Return them mapped to questions.  
+   - If answers are missing/invalid → Generate a **guided follow-up**.  
+   - If new irrelevant info is added → "Let’s focus on the questions first: [list]."  
 
-3. **Examples**:  
+3. **Output Format (STRICT JSON)**:  
+{  
+  "answer_identification_valid": true/false,  
+  "response": {  
+    "questions": ["q1", "q2"],  
+    "answers": ["a1", "a2"]  
+  } OR "message": "guidance text"  
+}  
+- Respond strictly in JSON format. Do not include any explanations, notes, or extra text. Only output the raw JSON.
+- Do NOT add headings, disclaimers, or conversational text. Only the JSON object is allowed.
+- Use this exact JSON structure. No deviations or extra text
+- Respond ONLY with the JSON object. No extra text, no greetings, no Markdown.
 
-**Example 1**:  
-- Original: "when admin pings me, reply in #general"  
-- Q/A: ["Apply to ALL admins?", "What message?"] → ["Yes", "Received!"]  
-- Output: "When any admin pings me, reply in #general with 'Received!'"  
+**Examples**:  
 
-**Example 2**:  
-- Original: "If someone posts [bad-word] in updates, delete"  
-- Q/A: ["Specify channel", "Confirm deletion?"] → ["#moderation", "Yes"]  
-- Output: "If someone posts [bad-word] in #moderation, delete message"  
+1. **Valid Answer**:  
+   - Pending Questions: ["Who is 'captain'? Provide @username", "What message?"]  
+   - User Response: "Captain is @john. Send 'Busy now, will update soon.'"  
+   - Output:  
+{  
+  "answer_identification_valid": true,  
+  "response": {  
+    "questions": ["Who is 'captain'? Provide @username", "What message?"],  
+    "answers": ["@john", "Busy now, will update soon"]  
+  }  
+}  
 
-**Example 3**:  
-- Original: "When captain requests docs, DM them"  
-- Q/A: ["Who is captain?", "What message?"] → ["@alex", "Docs here: [link]"]  
-- Output: "When @alex requests docs, DM them 'Docs here: [link]'"  
+2. Partial Answer:
+   - Pending Questions: ["Apply to ALL admins? If not, specify @username"]
+   - User Response: "Yes, all admins"
+   - Output:
+{  
+  "answer_identification_valid": true,  
+  "response": {  
+    "questions": ["Apply to ALL admins? If not, specify @username"],  
+    "answers": ["all"]  
+  }  
+}  
 
-**Example 4**:  
-- Original: "Edit messages with typos in genrl"  
-- Q/A: ["Fix channel name", "Replacement text?"] → ["#general", "Fixed:"]  
-- Output: "Edit messages with typos in #general to say 'Fixed:'"  
+3. Invalid Answer:
+   - Pending Questions: ["Specify @username for 'manager'", "What channel?"]
+   - User Response: "Use #general"
+   - Output:
+{  
+  "answer_identification_valid": false,  
+  "message": "Almost there! Please: 1) Specify @username for 'manager', 2) Confirm channel: #general?"  
+}  
 
-**Example 5**:  
-- Original: "Alert me if Leader posts urgent"  
-- Q/A: ["Which Leader?", "Channel?"] → ["@emma", "#announcements"]  
-- Output: "Alert me in #announcements if @emma posts urgent"  
+4. Formatting Error:
+   - Pending Question: ["Specify @username for 'leader'"]
+   - User Response: "Leader is John"
+   - Output:
+{  
+  "answer_identification_valid": false,  
+  "message": "Please use @username format for users. Example: 'Leader is @john_rc'"  
+}  
 
-Now generate the command:  
-###  
-Original Request: "{original_request}"  
-Questions: {questions}  
-Answers: {answers}  
-###  
+5. Irrelevant Response:
+Pending Question: ["What message to send?"]
+User Response: "Also, make sure to ping me"
+Output:
+{  
+  "answer_identification_valid": false,  
+  "message": "Let’s finish this first: What exact message should I send?"  
+}  
+
+Now process:
+###
+Pending Questions: {questions}
+User Response: {user_message}
+###
 `,
 }
