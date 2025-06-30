@@ -8,7 +8,6 @@ import { UIKitViewSubmitInteractionContext } from "@rocket.chat/apps-engine/defi
 import { AiChatWorkflowsAutomationApp } from "../AiChatWorkflowsAutomationApp";
 import { Modals } from "../definitions/ModalsEnum";
 import { getTriggerResponse, saveTriggerResponse } from "../utils/PersistenceMethodsCreationWorkflow";
-import { sendMessageInChannel } from "../utils/Messages";
 
 export class ExecuteViewSubmitHandler {
     constructor(
@@ -48,18 +47,11 @@ export class ExecuteViewSubmitHandler {
     ) {
         const { user, view } = context.getInteractionData();
 
-        // Extract all form values
         const action = view.state?.["actionBlock"]?.["action"] || "";
         const users = view.state?.["usersBlock"]?.["users"] || "";
         const channels = view.state?.["channelsBlock"]?.["channels"] || "";
         const condition = view.state?.["conditionBlock"]?.["condition"] || "";
         const response = view.state?.["responseBlock"]?.["response"] || "";
-
-        console.log("action : " + action);
-        console.log("users : " + users);
-        console.log("channels : " + channels);
-        console.log("condition : " + condition);
-        console.log("response : " + response);
 
         const id = await saveTriggerResponse(this.persistence, {
             trigger: {
