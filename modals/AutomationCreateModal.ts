@@ -117,13 +117,13 @@ export async function AutomationCreateModal({
                     },
                     value: "delete-message",
                 },
-                {
-                    text: {
-                        text: t("automation_action_edit"),
-                        type: TextObjectType.PLAINTEXT,
-                    },
-                    value: "edit-message",
-                },
+                // {
+                //     text: {
+                //         text: t("automation_action_edit"),
+                //         type: TextObjectType.PLAINTEXT,
+                //     },
+                //     value: "edit-message",
+                // },
             ],
         }),
         blockId: "actionBlock",
@@ -151,7 +151,7 @@ export async function AutomationCreateModal({
         title: blocks.newPlainTextObject(t("automation_create_title")),
         submit: blocks.newButtonElement({
             text: blocks.newPlainTextObject(t("create_automation")),
-            actionId: 'automation_create_config',
+            actionId: "automation_create_config",
         }),
         blocks: blocks.getBlocks(),
     };

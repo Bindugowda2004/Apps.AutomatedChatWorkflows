@@ -7,7 +7,10 @@ import {
 import { UIKitViewSubmitInteractionContext } from "@rocket.chat/apps-engine/definition/uikit";
 import { AiChatWorkflowsAutomationApp } from "../AiChatWorkflowsAutomationApp";
 import { Modals } from "../definitions/ModalsEnum";
-import { getTriggerResponse, saveTriggerResponse } from "../utils/PersistenceMethodsCreationWorkflow";
+import {
+    getTriggerResponse,
+    saveTriggerResponse,
+} from "../utils/PersistenceMethodsCreationWorkflow";
 
 export class ExecuteViewSubmitHandler {
     constructor(
@@ -54,6 +57,7 @@ export class ExecuteViewSubmitHandler {
         const response = view.state?.["responseBlock"]?.["response"] || "";
 
         const id = await saveTriggerResponse(this.persistence, {
+            command: "",
             trigger: {
                 user: users,
                 channel: channels,
@@ -69,8 +73,8 @@ export class ExecuteViewSubmitHandler {
         console.log("record : " + JSON.stringify(record));
 
         return {
-			success: true,
-			...view,
-		};
+            success: true,
+            ...view,
+        };
     }
 }

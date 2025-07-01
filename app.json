@@ -13,7 +13,8 @@
     "classFile": "AiChatWorkflowsAutomationApp.ts",
     "description": "Platform for generating functional automated chat workflows using LLMs.",
     "implements": [
-        "IPostMessageSentToBot"
+        "IPostMessageSentToBot",
+        "IPostMessageSent"
     ],
     "permissions": [
         {
