@@ -156,17 +156,19 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
 
             if (!structuredParsingResponse) return;
 
+            const responseToSave = {
+                command: commandCreationResponse.command,
+                ...structuredParsingResponse,
+            };
+
             await sendDirectMessage(
                 read,
                 modify,
                 user,
-                JSON.stringify(structuredParsingResponse)
+                JSON.stringify(responseToSave)
             );
 
-            const id = await saveTriggerResponse(
-                persistence,
-                structuredParsingResponse
-            );
+            const id = await saveTriggerResponse(persistence, responseToSave);
             const record = await getTriggerResponse(read, id);
             console.log("record : " + JSON.stringify(record));
 
@@ -229,17 +231,19 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
 
             if (!structuredParsingResponse) return;
 
+            const responseToSave = {
+                command: text,
+                ...structuredParsingResponse,
+            };
+
             await sendDirectMessage(
                 read,
                 modify,
                 user,
-                JSON.stringify(structuredParsingResponse)
+                JSON.stringify(responseToSave)
             );
 
-            const id = await saveTriggerResponse(
-                persistence,
-                structuredParsingResponse
-            );
+            const id = await saveTriggerResponse(persistence, responseToSave);
             const record = await getTriggerResponse(read, id);
             console.log("record : " + JSON.stringify(record));
         }

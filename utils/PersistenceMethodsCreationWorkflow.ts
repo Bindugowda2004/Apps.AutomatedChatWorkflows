@@ -287,6 +287,7 @@ export async function hasUserCommand(
 
 // Type for our trigger-response records
 interface TriggerResponseData {
+    command: string;
     trigger: {
         user: string | null;
         channel: string | null;
@@ -369,6 +370,7 @@ export async function getAllTriggerResponses(
     return records.map((record) => ({
         id: record._id,
         data: {
+            command: record.command,
             trigger: record.trigger,
             response: record.response,
             createdAt: record.createdAt,
@@ -463,6 +465,22 @@ export async function deleteTriggerResponse(
     );
 
     await persistence.removeByAssociations([miscAssoc, idAssoc]);
+}
+
+/**
+ * Finds trigger-response records by command
+ * @param read IRead accessor
+ * @param command The command to search for
+ * @returns Array of matching records
+ */
+export async function findTriggerResponsesByCommand(
+    read: IRead,
+    command: string
+): Promise<Array<{ id: string; data: TriggerResponseData }>> {
+    const allRecords = await getAllTriggerResponses(read);
+    return allRecords.filter(
+        (record) => record.data.command.toLowerCase() === command.toLowerCase()
+    );
 }
 
 /**
