@@ -167,6 +167,8 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
                 persistence,
                 responseToSave,
                 user.id,
+                true,
+                true,
                 true
             );
 
@@ -245,6 +247,8 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
                 persistence,
                 responseToSave,
                 user.id,
+                true,
+                true,
                 true
             );
         }

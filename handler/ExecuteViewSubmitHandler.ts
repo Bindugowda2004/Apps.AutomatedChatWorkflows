@@ -73,7 +73,9 @@ export class ExecuteViewSubmitHandler {
                 },
             },
             user.id,
-            false
+            false,
+            true,
+            true
         );
 
         const record = await getTriggerResponse(this.read, id);

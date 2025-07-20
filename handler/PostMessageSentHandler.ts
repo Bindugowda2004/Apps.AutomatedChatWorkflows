@@ -95,6 +95,20 @@ export class PostMessageSentHandler implements IPostMessageSent {
                                 response.data.response.message
                             );
                         }
+
+                        if (response.data.toNotify) {
+                            const creatorUser = await read
+                                .getUserReader()
+                                .getById(response.data.createdBy);
+                            const confirmationMessage = `Automation Workflow triggered for command: \n${response.data.command}`;
+
+                            await sendDirectMessage(
+                                read,
+                                modify,
+                                creatorUser,
+                                confirmationMessage
+                            );
+                        }
                     }
                     continue;
                 }
@@ -157,6 +171,20 @@ export class PostMessageSentHandler implements IPostMessageSent {
                         message,
                         editMessageResponse.message,
                         user
+                    );
+                }
+
+                if (response.data.toNotify) {
+                    const creatorUser = await read
+                        .getUserReader()
+                        .getById(response.data.createdBy);
+                    const confirmationMessage = `Automation Workflow triggered for command: \n${response.data.command}`;
+
+                    await sendDirectMessage(
+                        read,
+                        modify,
+                        creatorUser,
+                        confirmationMessage
                     );
                 }
             }

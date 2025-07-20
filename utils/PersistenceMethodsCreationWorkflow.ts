@@ -291,6 +291,8 @@ interface TriggerResponseData {
     command: string;
     createdBy: string;
     usedLLM: boolean;
+    toNotify: boolean;
+    isActive: boolean;
     trigger: {
         user: string | null;
         channel: string | null;
@@ -327,10 +329,18 @@ export async function saveTriggerResponse(
     persistence: IPersistence,
     data: Omit<
         TriggerResponseData,
-        "createdAt" | "updatedAt" | "createdBy" | "usedLLM" | "id"
+        | "createdAt"
+        | "updatedAt"
+        | "createdBy"
+        | "usedLLM"
+        | "id"
+        | "toNotify"
+        | "isActive"
     >,
     createdBy: string,
-    usedLLM: boolean
+    usedLLM: boolean,
+    toNotify: boolean,
+    isActive: boolean
 ): Promise<string> {
     const recordId = generateTriggerResponseId();
     const miscAssoc = new RocketChatAssociationRecord(
@@ -347,6 +357,8 @@ export async function saveTriggerResponse(
         id: recordId,
         createdBy,
         usedLLM,
+        toNotify,
+        isActive,
         createdAt: new Date(),
         updatedAt: new Date(),
     };
@@ -386,6 +398,8 @@ export async function getAllTriggerResponses(
             command: record.command,
             createdBy: record.createdBy,
             usedLLM: record.usedLLM,
+            toNotify: record.toNotify,
+            isActive: record.isActive,
             trigger: record.trigger,
             response: record.response,
             createdAt: record.createdAt,
@@ -428,6 +442,7 @@ export async function getTriggerResponse(
  */
 export async function updateTriggerResponse(
     persistence: IPersistence,
+    read: IRead,
     id: string,
     newData: Partial<Omit<TriggerResponseData, "createdAt" | "updatedAt">>
 ): Promise<void> {
@@ -440,10 +455,7 @@ export async function updateTriggerResponse(
         id
     );
 
-    const existing = await getTriggerResponse(
-        persistence as unknown as IRead,
-        id
-    );
+    const existing = await getTriggerResponse(read, id);
     if (!existing) {
         throw new Error(`Trigger-response record with ID ${id} not found`);
     }
@@ -575,11 +587,11 @@ export async function findTriggerResponsesByUser(
 }
 
 /**
- * Finds trigger-response records by both user and channel
+ * Finds active trigger-response records by both user and channel
  * @param read IRead accessor
  * @param user The user mention to search for
  * @param channel The channel name to search for
- * @returns Array of matching records
+ * @returns Array of matching records where isActive is true
  */
 export async function findTriggerResponsesByUserAndChannel(
     read: IRead,
@@ -593,7 +605,11 @@ export async function findTriggerResponsesByUserAndChannel(
     const allRecords = await getAllTriggerResponses(read);
 
     return allRecords.filter((record) => {
-        if (!record.data.trigger?.user || !record.data.trigger?.channel) {
+        if (
+            !record.data.isActive ||
+            !record.data.trigger?.user ||
+            !record.data.trigger?.channel
+        ) {
             return false;
         }
 
@@ -635,4 +651,34 @@ export async function findTriggerResponsesByCreatorAndLLM(
 
         return matchesCreator && matchesLLM;
     });
+}
+
+/**
+ * Updates the toNotify status of a trigger-response record
+ * @param persistence IPersistence accessor
+ * @param id The ID of the record to update
+ * @param toNotify The new notification status (true/false)
+ */
+export async function updateToNotifyStatus(
+    persistence: IPersistence,
+    read: IRead,
+    id: string,
+    toNotify: boolean
+): Promise<void> {
+    await updateTriggerResponse(persistence, read, id, { toNotify });
+}
+
+/**
+ * Updates the isActive status of a trigger-response record
+ * @param persistence IPersistence accessor
+ * @param id The ID of the record to update
+ * @param isActive The new active status (true/false)
+ */
+export async function updateIsActiveStatus(
+    persistence: IPersistence,
+    read: IRead,
+    id: string,
+    isActive: boolean
+): Promise<void> {
+    await updateTriggerResponse(persistence, read, id, { isActive });
 }
