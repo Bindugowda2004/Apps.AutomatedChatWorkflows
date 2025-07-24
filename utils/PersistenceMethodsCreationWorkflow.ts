@@ -287,7 +287,12 @@ export async function hasUserCommand(
 
 // Type for our trigger-response records
 interface TriggerResponseData {
+    id: string;
     command: string;
+    createdBy: string;
+    usedLLM: boolean;
+    toNotify: boolean;
+    isActive: boolean;
     trigger: {
         user: string | null;
         channel: string | null;
@@ -297,14 +302,13 @@ interface TriggerResponseData {
         action: string;
         message: string | null;
     };
-    // Adding these for better management
     createdAt?: Date;
     updatedAt?: Date;
 }
 
 // Association constants
 const TRIGGER_RESPONSE_TRACKER = "trigger_response_tracker";
-const TRIGGER_RESPONSE_ID_PREFIX = "trigger_response_";
+const TRIGGER_RESPONSE_ID_PREFIX = "workflowId_";
 
 /**
  * Generates a unique ID for each trigger-response record
@@ -317,11 +321,26 @@ function generateTriggerResponseId(): string {
  * Saves a new trigger-response record
  * @param persistence IPersistence accessor
  * @param data The trigger-response data to save
+ * @param createdBy The user id who created the current automation
+ * @param usedLLM 'true' if usedLLM to create automation otherwise 'false'
  * @returns The ID of the created record
  */
 export async function saveTriggerResponse(
     persistence: IPersistence,
-    data: Omit<TriggerResponseData, "createdAt" | "updatedAt">
+    data: Omit<
+        TriggerResponseData,
+        | "createdAt"
+        | "updatedAt"
+        | "createdBy"
+        | "usedLLM"
+        | "id"
+        | "toNotify"
+        | "isActive"
+    >,
+    createdBy: string,
+    usedLLM: boolean,
+    toNotify: boolean,
+    isActive: boolean
 ): Promise<string> {
     const recordId = generateTriggerResponseId();
     const miscAssoc = new RocketChatAssociationRecord(
@@ -335,6 +354,11 @@ export async function saveTriggerResponse(
 
     const completeData: TriggerResponseData = {
         ...data,
+        id: recordId,
+        createdBy,
+        usedLLM,
+        toNotify,
+        isActive,
         createdAt: new Date(),
         updatedAt: new Date(),
     };
@@ -342,7 +366,7 @@ export async function saveTriggerResponse(
     await persistence.updateByAssociations(
         [miscAssoc, idAssoc],
         completeData,
-        true // upsert enabled
+        true
     );
 
     return recordId;
@@ -370,7 +394,12 @@ export async function getAllTriggerResponses(
     return records.map((record) => ({
         id: record._id,
         data: {
+            id: record.id,
             command: record.command,
+            createdBy: record.createdBy,
+            usedLLM: record.usedLLM,
+            toNotify: record.toNotify,
+            isActive: record.isActive,
             trigger: record.trigger,
             response: record.response,
             createdAt: record.createdAt,
@@ -413,6 +442,7 @@ export async function getTriggerResponse(
  */
 export async function updateTriggerResponse(
     persistence: IPersistence,
+    read: IRead,
     id: string,
     newData: Partial<Omit<TriggerResponseData, "createdAt" | "updatedAt">>
 ): Promise<void> {
@@ -425,10 +455,7 @@ export async function updateTriggerResponse(
         id
     );
 
-    const existing = await getTriggerResponse(
-        persistence as unknown as IRead,
-        id
-    );
+    const existing = await getTriggerResponse(read, id);
     if (!existing) {
         throw new Error(`Trigger-response record with ID ${id} not found`);
     }
@@ -560,28 +587,98 @@ export async function findTriggerResponsesByUser(
 }
 
 /**
- * Finds trigger-response records by both user and channel
+ * Finds active trigger-response records by both user and channel
  * @param read IRead accessor
  * @param user The user mention to search for
  * @param channel The channel name to search for
- * @returns Array of matching records
+ * @returns Array of matching records where isActive is true
  */
 export async function findTriggerResponsesByUserAndChannel(
     read: IRead,
     user: string,
     channel: string
 ): Promise<Array<{ id: string; data: TriggerResponseData }>> {
-    const normalizedUser = user.startsWith("@") ? user : `@${user}`;
-    const normalizedChannel = channel.startsWith("#") ? channel : `#${channel}`;
+    // Remove any existing prefixes for consistent comparison
+    const normalizedSearchUser = user.replace(/^@/, "").toLowerCase();
+    const normalizedSearchChannel = channel.replace(/^#/, "").toLowerCase();
 
     const allRecords = await getAllTriggerResponses(read);
-    return allRecords.filter(
-        (record) =>
-            record.data.trigger.user &&
-            record.data.trigger.user.toLowerCase() ===
-                normalizedUser.toLowerCase() &&
-            record.data.trigger.channel &&
-            record.data.trigger.channel.toLowerCase() ===
-                normalizedChannel.toLowerCase()
-    );
+
+    return allRecords.filter((record) => {
+        if (
+            !record.data.isActive ||
+            !record.data.trigger?.user ||
+            !record.data.trigger?.channel
+        ) {
+            return false;
+        }
+
+        // Normalize stored values by removing prefixes
+        const recordUser = record.data.trigger.user
+            .replace(/^@/, "")
+            .toLowerCase();
+        const recordChannel = record.data.trigger.channel
+            .replace(/^#/, "")
+            .toLowerCase();
+
+        return (
+            recordUser === normalizedSearchUser &&
+            recordChannel === normalizedSearchChannel
+        );
+    });
+}
+
+/**
+ * Finds trigger-response records by creator and LLM usage
+ * @param read IRead accessor
+ * @param createdBy The creator's ID to filter by (optional)
+ * @param usedLLM Whether to filter by LLM usage (optional)
+ * @returns Array of matching records
+ */
+export async function findTriggerResponsesByCreatorAndLLM(
+    read: IRead,
+    createdBy?: string,
+    usedLLM?: boolean
+): Promise<Array<{ data: TriggerResponseData }>> {
+    const allRecords = await getAllTriggerResponses(read);
+
+    return allRecords.filter((record) => {
+        const matchesCreator = createdBy
+            ? record.data.createdBy === createdBy
+            : true;
+        const matchesLLM =
+            usedLLM !== undefined ? record.data.usedLLM === usedLLM : true;
+
+        return matchesCreator && matchesLLM;
+    });
+}
+
+/**
+ * Updates the toNotify status of a trigger-response record
+ * @param persistence IPersistence accessor
+ * @param id The ID of the record to update
+ * @param toNotify The new notification status (true/false)
+ */
+export async function updateToNotifyStatus(
+    persistence: IPersistence,
+    read: IRead,
+    id: string,
+    toNotify: boolean
+): Promise<void> {
+    await updateTriggerResponse(persistence, read, id, { toNotify });
+}
+
+/**
+ * Updates the isActive status of a trigger-response record
+ * @param persistence IPersistence accessor
+ * @param id The ID of the record to update
+ * @param isActive The new active status (true/false)
+ */
+export async function updateIsActiveStatus(
+    persistence: IPersistence,
+    read: IRead,
+    id: string,
+    isActive: boolean
+): Promise<void> {
+    await updateTriggerResponse(persistence, read, id, { isActive });
 }

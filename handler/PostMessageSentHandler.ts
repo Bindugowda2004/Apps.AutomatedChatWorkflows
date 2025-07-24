@@ -37,7 +37,6 @@ export class PostMessageSentHandler implements IPostMessageSent {
         persistence: IPersistence,
         modify: IModify
     ): Promise<void> {
-        // Basic message information extraction
         const user = message.sender;
         const text = message.text;
         const room = message.room;
@@ -45,12 +44,6 @@ export class PostMessageSentHandler implements IPostMessageSent {
         // Get the bot user
         const appUser = (await read.getUserReader().getAppUser()) as IUser;
 
-        // Log basic information
-        console.log(
-            `New message from ${user.username} in ${room.slugifiedName}: ${text}`
-        );
-
-        // Skip processing if no message text (could be attachment-only)
         if (!text) return;
 
         try {
@@ -66,18 +59,61 @@ export class PostMessageSentHandler implements IPostMessageSent {
 
             console.log(`Found ${triggerResponses.length} trigger responses:`);
 
-            // Replace forEach with for...of to properly handle async operations
             for (const [index, response] of triggerResponses.entries()) {
-                // console.log(`\nTrigger Response #${index + 1}:`);
-                // console.log(`ID: ${response.id}`);
+                // UI Approach
+                if (!response.data.usedLLM) {
+                    if (!text.includes(response.data.trigger.condition))
+                        continue;
 
-                // console.log(`Original Command: ${response.data.command}`);
+                    if (response.data.response.action === "delete-message") {
+                        const isDeleted = await deleteMessage(
+                            modify,
+                            message,
+                            user
+                        );
+                    }
 
-                // console.log("Trigger Data:");
-                // console.log(`- User: ${response.data.trigger.user}`);
-                // console.log(`- Channel: ${response.data.trigger.channel}`);
-                // console.log(`- Condition: ${response.data.trigger.condition}`);
+                    if (response.data.response.message) {
+                        if (
+                            response.data.response.action ===
+                            "send-message-in-dm"
+                        ) {
+                            await sendDirectMessage(
+                                read,
+                                modify,
+                                user,
+                                response.data.response.message
+                            );
+                        } else if (
+                            response.data.response.action ===
+                            "send-message-in-channel"
+                        ) {
+                            await sendMessageInChannel(
+                                modify,
+                                appUser,
+                                room,
+                                response.data.response.message
+                            );
+                        }
 
+                        if (response.data.toNotify) {
+                            const creatorUser = await read
+                                .getUserReader()
+                                .getById(response.data.createdBy);
+                            const confirmationMessage = `Automation Workflow triggered for command: \n${response.data.command}`;
+
+                            await sendDirectMessage(
+                                read,
+                                modify,
+                                creatorUser,
+                                confirmationMessage
+                            );
+                        }
+                    }
+                    continue;
+                }
+
+                // LLM Approach
                 // LLM call to check if the condition is triggered
                 const checkConditionPrompt = createCheckConditionPrompt(
                     text,
@@ -91,21 +127,18 @@ export class PostMessageSentHandler implements IPostMessageSent {
                         ? JSON.parse(checkConditionPromptByLLM)
                         : checkConditionPromptByLLM;
 
-                if (!checkConditionResponse.condition_met) {
-                    continue;
-                }
+                if (!checkConditionResponse.condition_met) continue;
+                if (checkConditionResponse.confidence < 75) continue;
 
-                if (checkConditionResponse.confidence < 75) {
-                    continue;
+                if (response.data.response.action === "delete-message") {
+                    const isDeleted = await deleteMessage(
+                        modify,
+                        message,
+                        user
+                    );
                 }
-
-                // Log Response Data
-                // console.log("Response Data:");
-                // console.log(`- Action: ${response.data.response.action}`);
-                // console.log(`- Message: ${response.data.response.message}`);
 
                 const messageToSend = response.data.response.message;
-
                 if (!messageToSend) continue;
 
                 if (response.data.response.action === "send-message-in-dm") {
@@ -119,13 +152,6 @@ export class PostMessageSentHandler implements IPostMessageSent {
                         room,
                         messageToSend
                     );
-                } else if (response.data.response.action === "delete-message") {
-                    const isDeleted = await deleteMessage(
-                        modify,
-                        message,
-                        user
-                    );
-                    console.log(`Deleted message: ${isDeleted}`);
                 } else if (response.data.response.action === "edit-message") {
                     const editMessagePrompt = createEditMessagePrompt(
                         response.data.command,
@@ -146,9 +172,19 @@ export class PostMessageSentHandler implements IPostMessageSent {
                         editMessageResponse.message,
                         user
                     );
+                }
 
-                    console.log(
-                        "Edited message: " + editMessageResponse.message
+                if (response.data.toNotify) {
+                    const creatorUser = await read
+                        .getUserReader()
+                        .getById(response.data.createdBy);
+                    const confirmationMessage = `Automation Workflow triggered for command: \n${response.data.command}`;
+
+                    await sendDirectMessage(
+                        read,
+                        modify,
+                        creatorUser,
+                        confirmationMessage
                     );
                 }
             }
