@@ -5,7 +5,10 @@ import {
     IRead,
 } from "@rocket.chat/apps-engine/definition/accessors";
 import { IPostMessageSentToBot } from "@rocket.chat/apps-engine/definition/messages/IPostMessageSentToBot";
-import { IMessage } from "@rocket.chat/apps-engine/definition/messages";
+import {
+    IMessage,
+    IMessageRaw,
+} from "@rocket.chat/apps-engine/definition/messages";
 import { IUser } from "@rocket.chat/apps-engine/definition/users";
 import {
     createAnswerIdentificationPrompt,
@@ -14,8 +17,7 @@ import {
     createStructuredParsingPrompt,
     createValidCommandPrompt,
 } from "../utils/prompt-helpers";
-import { sendDirectMessage } from "../utils/Messages";
-import { createTextCompletionGroq } from "../temp/createTextCompletionGroq";
+import { sendDirectMessage, sendThreadMessage } from "../utils/Messages";
 import {
     clearUserCommand,
     clearUserQuestions,
@@ -28,6 +30,7 @@ import {
     setUserQuestions,
     setUserStep,
 } from "../utils/PersistenceMethodsCreationWorkflow";
+import { generateResponse } from "../utils/GeminiModel";
 
 interface CommandPromptResponse {
     workflow_identification_valid: boolean;
@@ -75,6 +78,7 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
         const user = message.sender;
         const text = message.text;
         const room = message.room;
+        const threadId = message.threadId;
         const appUser = (await read.getUserReader().getAppUser()) as IUser;
 
         if (!text) return;
@@ -85,17 +89,15 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
             const questionsArr = await getUserQuestions(read, user.id);
             if (!questionsArr) return;
 
-            // questionsArr.forEach((q, i) => console.log(`${i + 1}. ${q}`));
-
             const answerIdentificationPrompt = createAnswerIdentificationPrompt(
                 questionsArr,
                 text
             );
-            const answerIdentificationPromptByLLM =
-                await createTextCompletionGroq(
-                    http,
-                    answerIdentificationPrompt
-                );
+            const answerIdentificationPromptByLLM = await generateResponse(
+                read,
+                http,
+                answerIdentificationPrompt
+            );
 
             const identificationResponse: IdentificationPromptResponse =
                 typeof answerIdentificationPromptByLLM === "string"
@@ -103,14 +105,17 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
                     : answerIdentificationPromptByLLM;
 
             if (!identificationResponse.answer_identification_valid) {
-                await sendDirectMessage(
-                    read,
-                    modify,
-                    user,
-                    identificationResponse.message ||
-                        "Please answer all the questions again"
-                );
-
+                if (threadId) {
+                    await sendThreadMessage(
+                        read,
+                        modify,
+                        appUser,
+                        room,
+                        identificationResponse.message ||
+                            "Please answer all the questions again",
+                        threadId
+                    );
+                }
                 return;
             }
 
@@ -126,11 +131,11 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
                     identificationResponse.response?.answers
                 );
 
-            const automationCommandCreationPromptByLLM =
-                await createTextCompletionGroq(
-                    http,
-                    automationCommandCreationPrompt
-                );
+            const automationCommandCreationPromptByLLM = await generateResponse(
+                read,
+                http,
+                automationCommandCreationPrompt
+            );
 
             const commandCreationResponse: CommandCreationResponse = {
                 command: automationCommandCreationPromptByLLM,
@@ -139,7 +144,8 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
             const structuredParsingPrompt = createStructuredParsingPrompt(
                 commandCreationResponse.command
             );
-            const structuredParsingPromptByLLM = await createTextCompletionGroq(
+            const structuredParsingPromptByLLM = await generateResponse(
+                read,
                 http,
                 structuredParsingPrompt
             );
@@ -156,13 +162,6 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
                 ...structuredParsingResponse,
             };
 
-            await sendDirectMessage(
-                read,
-                modify,
-                user,
-                JSON.stringify(responseToSave)
-            );
-
             const id = await saveTriggerResponse(
                 persistence,
                 responseToSave,
@@ -175,9 +174,23 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
             await clearUserCommand(persistence, user.id);
             await clearUserStep(persistence, user.id);
             await clearUserQuestions(persistence, user.id);
+
+            if (threadId) {
+                await sendThreadMessage(
+                    read,
+                    modify,
+                    appUser,
+                    room,
+                    JSON.stringify(responseToSave),
+                    threadId
+                );
+            }
         } else {
+            if (threadId) return;
+
             const validCommandPrompt = createValidCommandPrompt(text);
-            const validCommandPromptByLLM = await createTextCompletionGroq(
+            const validCommandPromptByLLM = await generateResponse(
+                read,
                 http,
                 validCommandPrompt
             );
@@ -194,7 +207,8 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
             }
 
             const reasoningPrompt = createReasoningPrompt(text);
-            const reasoningPromptByLLM = await createTextCompletionGroq(
+            const reasoningPromptByLLM = await generateResponse(
+                read,
                 http,
                 reasoningPrompt
             );
@@ -208,18 +222,42 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
                 const questionsArr = reasoningResponse.questions;
                 const questions = questionsArr.join("\n");
 
-                await sendDirectMessage(read, modify, user, questions);
+                await sendDirectMessage(
+                    read,
+                    modify,
+                    user,
+                    "For the current command, please continue the conversation in this thread. \nTo create a new command, start a new message - do not reply in this thread."
+                );
 
-                // call persistence method
-                await setUserCommand(persistence, user.id, text);
-                await setUserStep(persistence, user.id, "clarification");
-                await setUserQuestions(persistence, user.id, questionsArr);
+                const messages: IMessageRaw[] = await read
+                    .getRoomReader()
+                    .getMessages(room.id, {
+                        limit: Math.min(1),
+                        sort: { createdAt: "desc" },
+                    });
 
-                return;
+                const newThreadId = messages[0]?.id;
+                if (newThreadId) {
+                    await sendThreadMessage(
+                        read,
+                        modify,
+                        appUser,
+                        room,
+                        questions,
+                        newThreadId
+                    );
+
+                    // call persistence method - set values
+                    await setUserCommand(persistence, user.id, text);
+                    await setUserStep(persistence, user.id, "clarification");
+                    await setUserQuestions(persistence, user.id, questionsArr);
+                    return;
+                }
             }
 
             const structuredParsingPrompt = createStructuredParsingPrompt(text);
-            const structuredParsingPromptByLLM = await createTextCompletionGroq(
+            const structuredParsingPromptByLLM = await generateResponse(
+                read,
                 http,
                 structuredParsingPrompt
             );
@@ -240,7 +278,7 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
                 read,
                 modify,
                 user,
-                JSON.stringify(responseToSave)
+                "_Success! The Chat Automation workflow has been created._ \n_For more details, please open the thread._"
             );
 
             const id = await saveTriggerResponse(
@@ -251,6 +289,25 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
                 true,
                 true
             );
+
+            const messages: IMessageRaw[] = await read
+                .getRoomReader()
+                .getMessages(room.id, {
+                    limit: Math.min(1),
+                    sort: { createdAt: "desc" },
+                });
+
+            const newThreadId = messages[0]?.id;
+            if (newThreadId) {
+                await sendThreadMessage(
+                    read,
+                    modify,
+                    appUser,
+                    room,
+                    JSON.stringify(responseToSave),
+                    newThreadId
+                );
+            }
         }
     }
 }

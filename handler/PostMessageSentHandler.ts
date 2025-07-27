@@ -7,18 +7,21 @@ import {
 import { IPostMessageSent } from "@rocket.chat/apps-engine/definition/messages";
 import { IMessage } from "@rocket.chat/apps-engine/definition/messages";
 import { IUser } from "@rocket.chat/apps-engine/definition/users";
-import { findTriggerResponsesByUserAndChannel } from "../utils/PersistenceMethodsCreationWorkflow";
+import {
+    findTriggerResponsesByNullCombinations,
+    findTriggerResponsesByUserAndChannel,
+} from "../utils/PersistenceMethodsCreationWorkflow";
 import {
     createCheckConditionPrompt,
     createEditMessagePrompt,
 } from "../utils/prompt-helpers";
-import { createTextCompletionGroq } from "../temp/createTextCompletionGroq";
 import {
     deleteMessage,
     sendDirectMessage,
     sendMessageInChannel,
     updateMessageText,
 } from "../utils/Messages";
+import { generateResponse } from "../utils/GeminiModel";
 
 interface CheckConditionResponse {
     condition_met: boolean;
@@ -45,11 +48,14 @@ export class PostMessageSentHandler implements IPostMessageSent {
         const appUser = (await read.getUserReader().getAppUser()) as IUser;
 
         if (!text) return;
+        if(user.name === 'ai-chat-workflows-automation.bot') return;
+        // if(room.slugifiedName == undefined) return;
 
         try {
             // Get all trigger responses for this user and channel
             // console.log("user: " + user.username);
             // console.log("room: " + room.slugifiedName);
+            // console.log("room.type: " + room.type);
 
             const triggerResponses = await findTriggerResponsesByUserAndChannel(
                 read,
@@ -57,9 +63,16 @@ export class PostMessageSentHandler implements IPostMessageSent {
                 room.slugifiedName ?? ""
             );
 
-            console.log(`Found ${triggerResponses.length} trigger responses:`);
+            // console.log(`Found ${triggerResponses.length} trigger responses with user ${user.username} in channel ${room.slugifiedName}`);
 
-            for (const [index, response] of triggerResponses.entries()) {
+            const triggerResponses2 =
+                await findTriggerResponsesByNullCombinations(read);
+            // console.log(`Found ${triggerResponses2.length} trigger responses with null user or channel case`);
+
+            const allResponses = [...triggerResponses, ...triggerResponses2];
+            // console.log(`Found ${allResponses.length} in merged result`);
+
+            for (const [index, response] of allResponses.entries()) {
                 // UI Approach
                 if (!response.data.usedLLM) {
                     if (!text.includes(response.data.trigger.condition))
@@ -120,7 +133,7 @@ export class PostMessageSentHandler implements IPostMessageSent {
                     response.data.trigger.condition
                 );
                 const checkConditionPromptByLLM =
-                    await createTextCompletionGroq(http, checkConditionPrompt);
+                    await generateResponse(read, http, checkConditionPrompt);
 
                 const checkConditionResponse: CheckConditionResponse =
                     typeof checkConditionPromptByLLM === "string"
@@ -158,7 +171,7 @@ export class PostMessageSentHandler implements IPostMessageSent {
                         text
                     );
                     const editMessagePromptByLLM =
-                        await createTextCompletionGroq(http, editMessagePrompt);
+                        await generateResponse(read, http, editMessagePrompt);
 
                     const editMessageResponse: EditMessageResponse = {
                         message: editMessagePromptByLLM,

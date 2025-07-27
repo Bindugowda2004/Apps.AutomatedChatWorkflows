@@ -1,15 +1,21 @@
 import { IHttp, IRead } from "@rocket.chat/apps-engine/definition/accessors";
 
-export async function createTextCompletion(
+export async function createTextCompletionGroq(
     read: IRead,
     http: IHttp,
     prompt: string
 ): Promise<string> {
+    const apiKeyGroq = await read
+        .getEnvironmentReader()
+        .getSettings()
+        .getValueById("groq-api-key-id");
+
+    const url = `https://api.groq.com/openai/v1`;
+
     const model = await read
         .getEnvironmentReader()
         .getSettings()
-        .getValueById("model");
-    const url = `http://${model}/v1`;
+        .getValueById("groq-model");
 
     const body = {
         model,
@@ -25,14 +31,14 @@ export async function createTextCompletion(
     const response = await http.post(url + "/chat/completions", {
         headers: {
             "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKeyGroq}`,
         },
         content: JSON.stringify(body),
     });
 
     if (!response.content) {
-        console.log("Something is wrong with AI. Please try again later");
         throw new Error("Something is wrong with AI. Please try again later");
     }
 
-    return JSON.parse(response.content).choices[0].message.content;
+    return response.data.choices[0].message.content;
 }

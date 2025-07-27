@@ -198,7 +198,8 @@ export async function sendMessageInChannel(
     modify: IModify,
     user: IUser,
     room: IRoom,
-    message: string
+    message: string,
+    threadId?: string
 ): Promise<void> {
     const messageBuilder = modify
         .getCreator()
@@ -208,6 +209,10 @@ export async function sendMessageInChannel(
 
     if (message) {
         messageBuilder.setText(message);
+    }
+
+    if (threadId) {
+        messageBuilder.setThreadId(threadId);
     }
 
     await modify.getCreator().finish(messageBuilder);
@@ -265,4 +270,34 @@ export async function updateMessageText(
         console.error("Error updating message:", error);
         return false;
     }
+}
+
+export async function sendThreadMessage(
+    read: IRead,
+    modify: IModify,
+    sender: IUser,
+    room: IRoom,
+    message: string,
+    threadId: string
+): Promise<string | undefined> {
+    // Check if the thread exists
+    const threadReader = read.getThreadReader();
+    const thread = await threadReader.getThreadById(threadId);
+
+    if (!thread) {
+        throw new Error("Thread not found!");
+    }
+
+    // Send the message in the thread
+    const msg = modify
+        .getCreator()
+        .startMessage()
+        .setSender(sender)
+        .setRoom(room)
+        .setThreadId(threadId)
+        .setGroupable(false)
+        .setParseUrls(false)
+        .setText(message);
+
+    return await modify.getCreator().finish(msg);
 }
