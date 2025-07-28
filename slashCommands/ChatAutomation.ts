@@ -16,7 +16,11 @@ import {
     updateToNotifyStatus,
 } from "../utils/PersistenceMethodsCreationWorkflow";
 import { IUser } from "@rocket.chat/apps-engine/definition/users";
-import { sendDirectMessage, sendMessageInChannel, sendThreadMessage } from "../utils/Messages";
+import {
+    sendDirectMessage,
+    sendMessageInChannel,
+    sendThreadMessage,
+} from "../utils/Messages";
 import { IMessageRaw } from "@rocket.chat/apps-engine/definition/messages";
 
 export class ChatAutomation implements ISlashCommand {

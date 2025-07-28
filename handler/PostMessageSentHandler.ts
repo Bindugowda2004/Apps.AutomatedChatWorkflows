@@ -48,7 +48,7 @@ export class PostMessageSentHandler implements IPostMessageSent {
         const appUser = (await read.getUserReader().getAppUser()) as IUser;
 
         if (!text) return;
-        if(user.name === 'ai-chat-workflows-automation.bot') return;
+        if (user.name === "ai-chat-workflows-automation.bot") return;
         // if(room.slugifiedName == undefined) return;
 
         try {
@@ -132,8 +132,11 @@ export class PostMessageSentHandler implements IPostMessageSent {
                     text,
                     response.data.trigger.condition
                 );
-                const checkConditionPromptByLLM =
-                    await generateResponse(read, http, checkConditionPrompt);
+                const checkConditionPromptByLLM = await generateResponse(
+                    read,
+                    http,
+                    checkConditionPrompt
+                );
 
                 const checkConditionResponse: CheckConditionResponse =
                     typeof checkConditionPromptByLLM === "string"
@@ -170,8 +173,11 @@ export class PostMessageSentHandler implements IPostMessageSent {
                         response.data.command,
                         text
                     );
-                    const editMessagePromptByLLM =
-                        await generateResponse(read, http, editMessagePrompt);
+                    const editMessagePromptByLLM = await generateResponse(
+                        read,
+                        http,
+                        editMessagePrompt
+                    );
 
                     const editMessageResponse: EditMessageResponse = {
                         message: editMessagePromptByLLM,
