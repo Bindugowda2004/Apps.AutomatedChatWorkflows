@@ -85,11 +85,11 @@ If I'm deploying to localhost:3000 and my username is 'dhairyashil' and my passw
 rc-apps deploy --url http://localhost:3000 --username dhairyashil --password Pass@123
 ```
 
-<div align='center' width='100%'>
+<!-- <div align='center' width='100%'>
 <a href="https://github.com/RocketChat/Apps.AutomatedChatWorkflows/graphs/contributors">
 <img src="https://open-source-assets.middlewarehq.com/svgs/RocketChat-Apps.AutomatedChatWorkflows-contributor-metrics-dark-widget.svg?caching=true"></img>
 </a>
-</div>
+</div> -->
 
 ### Contributors
 
