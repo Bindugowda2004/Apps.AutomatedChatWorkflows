@@ -16,7 +16,7 @@ import {
     createReasoningPrompt,
     createStructuredParsingPrompt,
     createValidCommandPrompt,
-} from "../utils/prompt-helpers";
+} from "../utils/PromptHelpers";
 import { sendDirectMessage, sendThreadMessage } from "../utils/Messages";
 import {
     clearUserCommand,
@@ -29,8 +29,9 @@ import {
     setUserCommand,
     setUserQuestions,
     setUserStep,
-} from "../utils/PersistenceMethodsCreationWorkflow";
+} from "../utils/PersistenceMethods";
 import { generateResponse } from "../utils/GeminiModel";
+import { MessageEnum } from "../definitions/MessageEnum";
 
 interface CommandPromptResponse {
     workflow_identification_valid: boolean;
@@ -226,7 +227,7 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
                     read,
                     modify,
                     user,
-                    "For the current command, please continue the conversation in this thread. \nTo create a new command, start a new message - do not reply in this thread."
+                    MessageEnum.CONTINUE_IN_THREAD_MESSAGE
                 );
 
                 const messages: IMessageRaw[] = await read
@@ -278,7 +279,7 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
                 read,
                 modify,
                 user,
-                "_Success! The Chat Automation workflow has been created._ \n_For more details, please open the thread._"
+                MessageEnum.SUCCESS_MESSAGE_APP_DM
             );
 
             const id = await saveTriggerResponse(

@@ -10,11 +10,11 @@ import { IUser } from "@rocket.chat/apps-engine/definition/users";
 import {
     findTriggerResponsesByNullCombinations,
     findTriggerResponsesByUserAndChannel,
-} from "../utils/PersistenceMethodsCreationWorkflow";
+} from "../utils/PersistenceMethods";
 import {
     createCheckConditionPrompt,
     createEditMessagePrompt,
-} from "../utils/prompt-helpers";
+} from "../utils/PromptHelpers";
 import {
     deleteMessage,
     sendDirectMessage,
@@ -22,6 +22,7 @@ import {
     updateMessageText,
 } from "../utils/Messages";
 import { generateResponse } from "../utils/GeminiModel";
+import { ActionTypeEnum } from "../definitions/ActionTypeEnum";
 
 interface CheckConditionResponse {
     condition_met: boolean;
@@ -48,8 +49,7 @@ export class PostMessageSentHandler implements IPostMessageSent {
         const appUser = (await read.getUserReader().getAppUser()) as IUser;
 
         if (!text) return;
-        if (user.name === "ai-chat-workflows-automation.bot") return;
-        // if(room.slugifiedName == undefined) return;
+        if (user.name === appUser.name) return;
 
         try {
             // Get all trigger responses for this user and channel
@@ -62,15 +62,9 @@ export class PostMessageSentHandler implements IPostMessageSent {
                 user.username,
                 room.slugifiedName ?? ""
             );
-
-            // console.log(`Found ${triggerResponses.length} trigger responses with user ${user.username} in channel ${room.slugifiedName}`);
-
             const triggerResponses2 =
                 await findTriggerResponsesByNullCombinations(read);
-            // console.log(`Found ${triggerResponses2.length} trigger responses with null user or channel case`);
-
             const allResponses = [...triggerResponses, ...triggerResponses2];
-            // console.log(`Found ${allResponses.length} in merged result`);
 
             for (const [index, response] of allResponses.entries()) {
                 // UI Approach
@@ -78,7 +72,7 @@ export class PostMessageSentHandler implements IPostMessageSent {
                     if (!text.includes(response.data.trigger.condition))
                         continue;
 
-                    if (response.data.response.action === "delete-message") {
+                    if (response.data.response.action === ActionTypeEnum.DELETE_MESSAGE) {
                         const isDeleted = await deleteMessage(
                             modify,
                             message,
@@ -88,8 +82,7 @@ export class PostMessageSentHandler implements IPostMessageSent {
 
                     if (response.data.response.message) {
                         if (
-                            response.data.response.action ===
-                            "send-message-in-dm"
+                            response.data.response.action === ActionTypeEnum.SEND_MESSAGE_IN_DM
                         ) {
                             await sendDirectMessage(
                                 read,
@@ -98,8 +91,7 @@ export class PostMessageSentHandler implements IPostMessageSent {
                                 response.data.response.message
                             );
                         } else if (
-                            response.data.response.action ===
-                            "send-message-in-channel"
+                            response.data.response.action === ActionTypeEnum.SEND_MESSAGE_IN_CHANNEL
                         ) {
                             await sendMessageInChannel(
                                 modify,
@@ -127,7 +119,6 @@ export class PostMessageSentHandler implements IPostMessageSent {
                 }
 
                 // LLM Approach
-                // LLM call to check if the condition is triggered
                 const checkConditionPrompt = createCheckConditionPrompt(
                     text,
                     response.data.trigger.condition
@@ -146,7 +137,7 @@ export class PostMessageSentHandler implements IPostMessageSent {
                 if (!checkConditionResponse.condition_met) continue;
                 if (checkConditionResponse.confidence < 75) continue;
 
-                if (response.data.response.action === "delete-message") {
+                if (response.data.response.action === ActionTypeEnum.DELETE_MESSAGE) {
                     const isDeleted = await deleteMessage(
                         modify,
                         message,
@@ -157,10 +148,10 @@ export class PostMessageSentHandler implements IPostMessageSent {
                 const messageToSend = response.data.response.message;
                 if (!messageToSend) continue;
 
-                if (response.data.response.action === "send-message-in-dm") {
+                if (response.data.response.action === ActionTypeEnum.SEND_MESSAGE_IN_DM) {
                     await sendDirectMessage(read, modify, user, messageToSend);
                 } else if (
-                    response.data.response.action === "send-message-in-channel"
+                    response.data.response.action === ActionTypeEnum.SEND_MESSAGE_IN_CHANNEL
                 ) {
                     await sendMessageInChannel(
                         modify,
@@ -168,7 +159,7 @@ export class PostMessageSentHandler implements IPostMessageSent {
                         room,
                         messageToSend
                     );
-                } else if (response.data.response.action === "edit-message") {
+                } else if (response.data.response.action === ActionTypeEnum.EDIT_MESSAGE) {
                     const editMessagePrompt = createEditMessagePrompt(
                         response.data.command,
                         text

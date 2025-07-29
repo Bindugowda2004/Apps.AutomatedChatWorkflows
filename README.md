@@ -1,6 +1,87 @@
-# AI-Chat-Workflows-Automation-App
+<h1 align="center">🤖 AI Chat Workflows Automation App</h1>
 
-Rocket.Chat App for generating functional automated chat workflows using LLMs.
+<p align="center">
+    <em>Rocket.Chat App for generating functional automated chat workflows using LLMs</em>
+</p>
+
+<div align="center" style="margin: 1rem 1rem;">
+    <img width="50%" src="https://raw.githubusercontent.com/RocketChat/Apps.AutomatedChatWorkflows/refs/heads/main/icon.png" alt="AI Chat Workflows Automation App Icon">
+</div>
+
+---
+
+## 🧠 Overview
+
+The **AI Chat Workflows Automation App** enables you to create and manage automated chat workflows in Rocket.Chat using natural language or a structured UI. It leverages the power of Large Language Models (LLMs) to understand your instructions and generate automation rules seamlessly.
+
+---
+
+## 🚀 Features
+
+- Create workflows using plain English through direct chat
+- Use slash commands to manage workflows via an intuitive UI
+- Enable/disable workflows
+- Control notifications for triggered workflows
+- Manage workflows (list, delete) with ease
+
+---
+
+## 🛠️ How to Create Workflows
+
+You can create chat workflow automations using **two methods**:
+
+### 1. 💬 Chat with the App (LLM-powered)
+- Requires LLM support.
+- Admins must configure settings in the UI:
+  - Navigate to: `Marketplace → Private Apps → AI Chat Workflows Automation → Settings`
+
+### 2. ⚙️ Use Slash Command `/chat-automation-create`
+- Opens a UI modal where you can fill in all the necessary details to create a workflow.
+
+---
+
+## 💻 Slash Commands
+
+| Command | Description |
+|--------|-------------|
+| `/chat-automation ping` | Sends a hello message to your Direct Messages (DM) from the app |
+| `/chat-automation list` | Displays a list of all created workflows |
+| `/chat-automation delete <id>` | Deletes the workflow with the specified ID |
+| `/chat-automation enable <id>` | Enables the workflow with the specified ID |
+| `/chat-automation disable <id>` | Disables the workflow with the specified ID |
+| `/chat-automation notification off <id>` | Disables notifications for a workflow trigger |
+| `/chat-automation notification on <id>` | Enables notifications for a workflow trigger |
+
+---
+
+## 💬 Example Messages for Chat-Based Workflow Creation
+
+You can simply send a message to the app using natural language to create workflows. Here are a few examples:
+
+- **DM after welcome message:**
+Whenever @dhairyashil posts any welcome messages in #general, immediately DM him "Thank you for the welcome."
+
+
+- **Reply in same channel:**
+Whenever @dhairyashil posts any welcome messages in #general, immediately message him in the same channel "Thank you for the welcome in this channel."
+
+- **Edit message:**
+Whenever @dhairyashil posts any welcome messages in #general, immediately edit the message by appending "regards" at the end.
+
+- **Delete message:**
+Whenever @dhairyashil posts any welcome messages in #general, delete the message immediately.
+
+- **Delete based on content:**
+Whenever a message is posted that contains a four-letter word starting with the letter F, delete that message immediately.
+
+---
+
+## 📌 Notes
+
+- Only users with admin access can configure the app’s LLM settings.
+- Commands are case-insensitive and should be entered exactly as shown for proper execution.
+
+---
 
 ## Getting Started
 

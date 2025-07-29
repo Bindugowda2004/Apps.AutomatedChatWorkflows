@@ -10,6 +10,10 @@ import { IUIKitModalViewParam } from "@rocket.chat/apps-engine/definition/uikit/
 import { TextObjectType } from "@rocket.chat/apps-engine/definition/uikit/blocks";
 import { Modals } from "../definitions/ModalsEnum";
 import { t } from "../i18n/translation";
+import {
+    storeInteractionRoomData,
+} from "../utils/PersistenceMethods";
+import { ActionTypeEnum } from "../definitions/ActionTypeEnum";
 
 export async function AutomationCreateModal({
     modify,
@@ -34,6 +38,13 @@ export async function AutomationCreateModal({
         uiKitContext?.getInteractionData().user;
 
     const blocks = modify.getCreator().getBlockBuilder();
+
+    let roomId: string;
+
+    if (user?.id && room?.id) {
+        roomId = room.id;
+        await storeInteractionRoomData(persistence, user.id, roomId);
+    }
 
     // User/Group selection
     blocks.addInputBlock({
@@ -101,28 +112,28 @@ export async function AutomationCreateModal({
                         text: t("automation_action_send_dm"),
                         type: TextObjectType.PLAINTEXT,
                     },
-                    value: "send-message-in-dm",
+                    value: ActionTypeEnum.SEND_MESSAGE_IN_DM,
                 },
                 {
                     text: {
                         text: t("automation_action_send_channel"),
                         type: TextObjectType.PLAINTEXT,
                     },
-                    value: "send-message-in-channel",
+                    value: ActionTypeEnum.SEND_MESSAGE_IN_CHANNEL,
                 },
                 {
                     text: {
                         text: t("automation_action_delete"),
                         type: TextObjectType.PLAINTEXT,
                     },
-                    value: "delete-message",
+                    value: ActionTypeEnum.DELETE_MESSAGE,
                 },
                 // {
                 //     text: {
                 //         text: t("automation_action_edit"),
                 //         type: TextObjectType.PLAINTEXT,
                 //     },
-                //     value: "edit-message",
+                //      value: ActionTypeEnum.EDIT_MESSAGE,
                 // },
             ],
         }),

@@ -14,7 +14,7 @@ import {
     findTriggerResponsesByCreatorAndLLM,
     updateIsActiveStatus,
     updateToNotifyStatus,
-} from "../utils/PersistenceMethodsCreationWorkflow";
+} from "../utils/PersistenceMethods";
 import { IUser } from "@rocket.chat/apps-engine/definition/users";
 import {
     sendDirectMessage,
@@ -22,6 +22,7 @@ import {
     sendThreadMessage,
 } from "../utils/Messages";
 import { IMessageRaw } from "@rocket.chat/apps-engine/definition/messages";
+import { MessageEnum } from "../definitions/MessageEnum";
 
 export class ChatAutomation implements ISlashCommand {
     public constructor(private readonly app: AiChatWorkflowsAutomationApp) {}
@@ -29,7 +30,7 @@ export class ChatAutomation implements ISlashCommand {
     public command = "chat-automation";
     public i18nDescription = "chat automation config";
     public providesPreview = false;
-    public i18nParamsExample = "list";
+    public i18nParamsExample = "";
 
     public async executor(
         context: SlashCommandContext,
@@ -47,8 +48,6 @@ export class ChatAutomation implements ISlashCommand {
         const command = context.getArguments();
         const [subcommand] = context.getArguments();
         const filter = subcommand ? subcommand.toLowerCase() : "";
-
-        // let ids: string[] | undefined;
 
         if (filter === "list") {
             const userCommands = await findTriggerResponsesByCreatorAndLLM(
@@ -74,8 +73,7 @@ export class ChatAutomation implements ISlashCommand {
                     })
                     .join("\n");
             } else {
-                messageToSend =
-                    "_No automation workflows found that were created using Chat. Please create a workflow using Chat first._";
+                messageToSend = MessageEnum.WORKFLOW_NOT_FOUND_DM;
             }
             await sendMessageInChannel(
                 modify,
@@ -128,8 +126,7 @@ export class ChatAutomation implements ISlashCommand {
                     })
                     .join("\n");
             } else {
-                messageToSendUI =
-                    "_No automation workflows found that were created using the UI Block. Please create a workflow using the UI Block first._";
+                messageToSendUI = MessageEnum.WORKFLOW_NOT_FOUND_UI;
             }
             await sendMessageInChannel(
                 modify,
@@ -164,7 +161,7 @@ export class ChatAutomation implements ISlashCommand {
                     modify,
                     appUser,
                     room,
-                    `deleted the workflow with id ${command[1]}`,
+                    `Deleted the workflow with id ${command[1]}`,
                     threadId
                 );
             }
@@ -246,10 +243,9 @@ export class ChatAutomation implements ISlashCommand {
                 modify,
                 appUser,
                 room,
-                `Please provide filter eg: list, delete <id>`,
+                `Please provide filter eg: ping, list, delete <id>`,
                 threadId
             );
-            // ids = command.map((name) => name.replace(/^@/, ''));
         }
     }
 }
