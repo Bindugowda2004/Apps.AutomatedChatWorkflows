@@ -54,36 +54,44 @@ export class ExecuteViewSubmitHandler {
         const users = view.state?.["usersBlock"]?.["users"] || "";
         const channels = view.state?.["channelsBlock"]?.["channels"] || "";
         const condition = view.state?.["conditionBlock"]?.["condition"] || "";
-        const response = view.state?.["responseBlock"]?.["response"] || "";
+        let response = view.state?.["responseBlock"]?.["response"] || "";
 
-        const command = `When the user @${users} sends a message in the #${channels} channel that includes the phrase "${condition}", then perform the action "${action}" with response '${response}'.`;
+        if (action === "delete-message") {
+            response = "N/A";
+        }
 
-        const id = await saveTriggerResponse(
-            this.persistence,
-            {
-                command: command,
-                trigger: {
-                    user: users,
-                    channel: channels,
-                    condition: condition,
+        if (users && channels && condition && action && response) {
+            const command = `When the user @${users} sends a message in the #${channels} channel that includes the phrase "${condition}", then perform the action "${action}" with response '${response}'.`;
+
+            const id = await saveTriggerResponse(
+                this.persistence,
+                {
+                    command: command,
+                    trigger: {
+                        user: users,
+                        channel: channels,
+                        condition: condition,
+                    },
+                    response: {
+                        action: action,
+                        message: response,
+                    },
                 },
-                response: {
-                    action: action,
-                    message: response,
-                },
-            },
-            user.id,
-            false,
-            true,
-            true
-        );
+                user.id,
+                false,
+                true,
+                true
+            );
 
-        const record = await getTriggerResponse(this.read, id);
-        console.log("record : " + JSON.stringify(record));
-
-        return {
-            success: true,
-            ...view,
-        };
+            return {
+                success: true,
+                ...view,
+            };
+        } else {
+            return {
+                success: false,
+                ...view,
+            };
+        }
     }
 }

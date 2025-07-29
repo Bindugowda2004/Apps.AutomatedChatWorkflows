@@ -286,7 +286,7 @@ export async function hasUserCommand(
 // =======================================================================
 
 // Type for our trigger-response records
-interface TriggerResponseData {
+export interface TriggerResponseData {
     id: string;
     command: string;
     createdBy: string;
@@ -681,4 +681,33 @@ export async function updateIsActiveStatus(
     isActive: boolean
 ): Promise<void> {
     await updateTriggerResponse(persistence, read, id, { isActive });
+}
+
+/**
+ * Finds trigger-response records by user and channel null combinations
+ * @param read IRead accessor
+ * @returns Array of records matching:
+ *   - Case 1: both user and channel are null (global triggers)
+ *   - Case 2: user is specified but channel is null (user-specific triggers)
+ *   - Case 3: user is null but channel is specified (channel-specific triggers)
+ */
+export async function findTriggerResponsesByNullCombinations(
+    read: IRead
+): Promise<Array<{ id: string; data: TriggerResponseData }>> {
+    const allRecords = await getAllTriggerResponses(read);
+
+    return allRecords.filter((record) => {
+        const { user, channel } = record.data.trigger;
+
+        // Case 1: Both user and channel are null (global triggers)
+        const case1 = user === null && channel === null;
+
+        // Case 2: User is specified but channel is null (user-specific triggers)
+        const case2 = user !== null && channel === null;
+
+        // Case 3: User is null but channel is specified (channel-specific triggers)
+        const case3 = user === null && channel !== null;
+
+        return case1 || case2 || case3;
+    });
 }
