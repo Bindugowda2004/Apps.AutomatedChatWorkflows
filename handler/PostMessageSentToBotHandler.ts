@@ -32,6 +32,7 @@ import {
 } from "../utils/PersistenceMethods";
 import { generateResponse } from "../utils/GeminiModel";
 import { MessageEnum } from "../definitions/MessageEnum";
+import { createTextCompletionGroq } from "../utils/GroqModels";
 
 interface CommandPromptResponse {
     workflow_identification_valid: boolean;
@@ -94,11 +95,12 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
                 questionsArr,
                 text
             );
-            const answerIdentificationPromptByLLM = await generateResponse(
-                read,
-                http,
-                answerIdentificationPrompt
-            );
+            const answerIdentificationPromptByLLM =
+                await createTextCompletionGroq(
+                    read,
+                    http,
+                    answerIdentificationPrompt
+                );
 
             const identificationResponse: IdentificationPromptResponse =
                 typeof answerIdentificationPromptByLLM === "string"
@@ -132,11 +134,12 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
                     identificationResponse.response?.answers
                 );
 
-            const automationCommandCreationPromptByLLM = await generateResponse(
-                read,
-                http,
-                automationCommandCreationPrompt
-            );
+            const automationCommandCreationPromptByLLM =
+                await createTextCompletionGroq(
+                    read,
+                    http,
+                    automationCommandCreationPrompt
+                );
 
             const commandCreationResponse: CommandCreationResponse = {
                 command: automationCommandCreationPromptByLLM,
@@ -145,7 +148,7 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
             const structuredParsingPrompt = createStructuredParsingPrompt(
                 commandCreationResponse.command
             );
-            const structuredParsingPromptByLLM = await generateResponse(
+            const structuredParsingPromptByLLM = await createTextCompletionGroq(
                 read,
                 http,
                 structuredParsingPrompt
@@ -163,7 +166,7 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
                 ...structuredParsingResponse,
             };
 
-            const id = await saveTriggerResponse(
+            const workflowId = await saveTriggerResponse(
                 persistence,
                 responseToSave,
                 user.id,
@@ -176,13 +179,42 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
             await clearUserStep(persistence, user.id);
             await clearUserQuestions(persistence, user.id);
 
+            const workflowDetails = `*Command*: ${responseToSave.command}
+            *Trigger*
+                - *User*: ${
+                    responseToSave.trigger.user
+                        ? responseToSave.trigger.user
+                        : "All Users"
+                }
+                - *Channel*: ${
+                    responseToSave.trigger.channel
+                        ? responseToSave.trigger.channel
+                        : "All Channels"
+                }
+            *Condition*: ${responseToSave.trigger.condition}
+            *Action*: ${responseToSave.response.action}
+            *Message*: ${
+                responseToSave.response.message
+                    ? responseToSave.response.message
+                    : "N/A"
+            }
+            *WorkflowId*: ${workflowId}`;
+
             if (threadId) {
                 await sendThreadMessage(
                     read,
                     modify,
                     appUser,
                     room,
-                    JSON.stringify(responseToSave),
+                    MessageEnum.SUCCESS_MESSAGE_APP_DM_REASONING,
+                    threadId
+                );
+                await sendThreadMessage(
+                    read,
+                    modify,
+                    appUser,
+                    room,
+                    workflowDetails,
                     threadId
                 );
             }
@@ -190,7 +222,7 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
             if (threadId) return;
 
             const validCommandPrompt = createValidCommandPrompt(text);
-            const validCommandPromptByLLM = await generateResponse(
+            const validCommandPromptByLLM = await createTextCompletionGroq(
                 read,
                 http,
                 validCommandPrompt
@@ -208,7 +240,7 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
             }
 
             const reasoningPrompt = createReasoningPrompt(text);
-            const reasoningPromptByLLM = await generateResponse(
+            const reasoningPromptByLLM = await createTextCompletionGroq(
                 read,
                 http,
                 reasoningPrompt
@@ -257,7 +289,7 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
             }
 
             const structuredParsingPrompt = createStructuredParsingPrompt(text);
-            const structuredParsingPromptByLLM = await generateResponse(
+            const structuredParsingPromptByLLM = await createTextCompletionGroq(
                 read,
                 http,
                 structuredParsingPrompt
@@ -279,10 +311,10 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
                 read,
                 modify,
                 user,
-                MessageEnum.SUCCESS_MESSAGE_APP_DM
+                MessageEnum.SUCCESS_MESSAGE_APP_DM_DIRECT
             );
 
-            const id = await saveTriggerResponse(
+            const workflowId = await saveTriggerResponse(
                 persistence,
                 responseToSave,
                 user.id,
@@ -290,6 +322,27 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
                 true,
                 true
             );
+
+            const workflowDetails = `*Command*: ${responseToSave.command}
+            *Trigger*
+                - *User*: ${
+                    responseToSave.trigger.user
+                        ? responseToSave.trigger.user
+                        : "All Users"
+                }
+                - *Channel*: ${
+                    responseToSave.trigger.channel
+                        ? responseToSave.trigger.channel
+                        : "All Channels"
+                }
+            *Condition*: ${responseToSave.trigger.condition}
+            *Action*: ${responseToSave.response.action}
+            *Message*: ${
+                responseToSave.response.message
+                    ? responseToSave.response.message
+                    : "N/A"
+            }
+            *WorkflowId*: ${workflowId}`;
 
             const messages: IMessageRaw[] = await read
                 .getRoomReader()
@@ -305,7 +358,7 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
                     modify,
                     appUser,
                     room,
-                    JSON.stringify(responseToSave),
+                    workflowDetails,
                     newThreadId
                 );
             }

@@ -34,6 +34,7 @@ You can create chat workflow automations using **two methods**:
 - Requires LLM support.
 - Admins must configure settings in the UI:
   - Navigate to: `Marketplace → Private Apps → AI Chat Workflows Automation → Settings`
+  - Only users with admin access can configure the app’s LLM settings.
 
 ### 2. ⚙️ Use Slash Command `/chat-automation-create`
 - Opens a UI modal where you can fill in all the necessary details to create a workflow.
@@ -76,20 +77,17 @@ Whenever a message is posted that contains a four-letter word starting with the 
 
 ---
 
-## 📌 Notes
+<h2>Support us ❤️</h2>
 
-- Only users with admin access can configure the app’s LLM settings.
-- Commands are case-insensitive and should be entered exactly as shown for proper execution.
+If you like this project, please leave a star ⭐️. This helps more people to know this project.
 
----
-
-## Getting Started
+## 🧾 Getting Started
 
 ### Requirements
 - Node.js v20.18.1
 - Unix-based OS (Linux, macOS, WSL2)
 
-## Part 1: Deploying the App
+## 🚀 Deploying the App
 
 #### 1. Install the Rocket.Chat Apps CLI
 Install `rc-apps` globally:
@@ -107,10 +105,10 @@ rc-apps -v
 You should see the CLI version information:
 
 ```bash
-@rocket.chat/apps-cli/1.12.0 darwin-arm64 node-v20.18.1
+@rocket.chat/apps-cli/1.12.1 linux-x64 node-v20.18.1
 ```
 
-> **Note:** The platform information (e.g., "darwin-arm64") will differ depending on your operating system.
+> **Note:** The platform information (e.g., "linux-x64") will differ depending on your operating system.
 
 #### 2. Clone the repository
 

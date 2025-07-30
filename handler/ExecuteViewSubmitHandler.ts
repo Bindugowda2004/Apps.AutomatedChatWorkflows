@@ -7,10 +7,7 @@ import {
 import { UIKitViewSubmitInteractionContext } from "@rocket.chat/apps-engine/definition/uikit";
 import { AiChatWorkflowsAutomationApp } from "../AiChatWorkflowsAutomationApp";
 import { Modals } from "../definitions/ModalsEnum";
-import {
-    getRoom,
-    saveTriggerResponse,
-} from "../utils/PersistenceMethods";
+import { getRoom, saveTriggerResponse } from "../utils/PersistenceMethods";
 import { sendNotification } from "../utils/Messages";
 import { MessageEnum } from "../definitions/MessageEnum";
 
@@ -92,14 +89,7 @@ export class ExecuteViewSubmitHandler {
                     this.modify,
                     user,
                     room,
-                    MessageEnum.SUCCESS_MESSAGE_UI_MODAL
-                );
-                await sendNotification(
-                    this.read,
-                    this.modify,
-                    user,
-                    room,
-                    command
+                    MessageEnum.SUCCESS_MESSAGE_UI_MODAL + command
                 );
             }
 

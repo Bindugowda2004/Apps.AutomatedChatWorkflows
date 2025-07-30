@@ -16,13 +16,14 @@ import {
     updateToNotifyStatus,
 } from "../utils/PersistenceMethods";
 import { IUser } from "@rocket.chat/apps-engine/definition/users";
+import { MessageEnum } from "../definitions/MessageEnum";
 import {
     sendDirectMessage,
+    sendNotification,
     sendMessageInChannel,
     sendThreadMessage,
 } from "../utils/Messages";
 import { IMessageRaw } from "@rocket.chat/apps-engine/definition/messages";
-import { MessageEnum } from "../definitions/MessageEnum";
 
 export class ChatAutomation implements ISlashCommand {
     public constructor(private readonly app: AiChatWorkflowsAutomationApp) {}
@@ -39,7 +40,7 @@ export class ChatAutomation implements ISlashCommand {
         http: IHttp,
         persistence: IPersistence
     ): Promise<void> {
-        const sender = context.getSender();
+        const user = context.getSender();
         const room = context.getRoom();
         const threadId = context.getThreadId();
 
@@ -52,7 +53,7 @@ export class ChatAutomation implements ISlashCommand {
         if (filter === "list") {
             const userCommands = await findTriggerResponsesByCreatorAndLLM(
                 read,
-                sender.id,
+                user.id,
                 true
             );
 
@@ -75,14 +76,18 @@ export class ChatAutomation implements ISlashCommand {
             } else {
                 messageToSend = MessageEnum.WORKFLOW_NOT_FOUND_DM;
             }
-            await sendMessageInChannel(
+
+            await sendNotification(
+                read,
                 modify,
-                appUser,
+                user,
                 room,
-                "Created using chat: ",
+                `Created using chat: 
+                ${messageToSend}`,
                 threadId
             );
 
+            /*
             const messages: IMessageRaw[] = await read
                 .getRoomReader()
                 .getMessages(room.id, {
@@ -101,11 +106,12 @@ export class ChatAutomation implements ISlashCommand {
                     newThreadId
                 );
             }
+            */
 
             // ==================================================================
             const userCommandsUI = await findTriggerResponsesByCreatorAndLLM(
                 read,
-                sender.id,
+                user.id,
                 false
             );
 
@@ -128,14 +134,18 @@ export class ChatAutomation implements ISlashCommand {
             } else {
                 messageToSendUI = MessageEnum.WORKFLOW_NOT_FOUND_UI;
             }
-            await sendMessageInChannel(
+
+            await sendNotification(
+                read,
                 modify,
-                appUser,
+                user,
                 room,
-                "Created using UI Block: ",
+                `Created using UI Block: 
+                ${messageToSendUI}`,
                 threadId
             );
 
+            /*
             const messagesForUI: IMessageRaw[] = await read
                 .getRoomReader()
                 .getMessages(room.id, {
@@ -154,12 +164,15 @@ export class ChatAutomation implements ISlashCommand {
                     newThreadIdUI
                 );
             }
+            */
         } else if (filter === "delete") {
             if (command[1]) {
                 await deleteTriggerResponse(persistence, command[1]);
-                await sendMessageInChannel(
+
+                await sendNotification(
+                    read,
                     modify,
-                    appUser,
+                    user,
                     room,
                     `Deleted the workflow with id ${command[1]}`,
                     threadId
@@ -175,9 +188,11 @@ export class ChatAutomation implements ISlashCommand {
                             command[2],
                             false
                         );
-                        await sendMessageInChannel(
+
+                        await sendNotification(
+                            read,
                             modify,
-                            appUser,
+                            user,
                             room,
                             `Notification config updated to 'OFF' for workflow with id: ${command[2]}`,
                             threadId
@@ -191,9 +206,11 @@ export class ChatAutomation implements ISlashCommand {
                             command[2],
                             true
                         );
-                        await sendMessageInChannel(
+
+                        await sendNotification(
+                            read,
                             modify,
-                            appUser,
+                            user,
                             room,
                             `Notification config updated to 'ON' for workflow with id: ${command[2]}`,
                             threadId
@@ -204,9 +221,11 @@ export class ChatAutomation implements ISlashCommand {
         } else if (filter === "enable") {
             if (command[1]) {
                 await updateIsActiveStatus(persistence, read, command[1], true);
-                await sendMessageInChannel(
+
+                await sendNotification(
+                    read,
                     modify,
-                    appUser,
+                    user,
                     room,
                     `Automation workflow with id: ${command[1]} is now enabled.`,
                     threadId
@@ -220,9 +239,10 @@ export class ChatAutomation implements ISlashCommand {
                     command[1],
                     false
                 );
-                await sendMessageInChannel(
+                await sendNotification(
+                    read,
                     modify,
-                    appUser,
+                    user,
                     room,
                     `Automation workflow with id: ${command[1]} is now disabled.`,
                     threadId
@@ -232,18 +252,19 @@ export class ChatAutomation implements ISlashCommand {
             await sendDirectMessage(
                 read,
                 modify,
-                sender,
-                `_Hello ${sender.name}, I'm ${appUser.name} App. I can help you create Chat Automation workflows!_
+                user,
+                `_Hello ${user.name}, I'm ${appUser.name} App. I can help you create Chat Automation workflows!_
                 Here’s how it works: 
                 _"Whenever @<username> posts any welcome messages in #<channel name>, immediately DM them with a thank-you note."_
                 _Just describe what you'd like to automate, and I'll take care of the rest!_`
             );
         } else {
-            await sendMessageInChannel(
+            await sendNotification(
+                read,
                 modify,
-                appUser,
+                user,
                 room,
-                `Please provide filter eg: ping, list, delete <id>`,
+                MessageEnum.CHAT_AUTOMATION_COMMAND_INSTRUCTION_MESSAGE,
                 threadId
             );
         }

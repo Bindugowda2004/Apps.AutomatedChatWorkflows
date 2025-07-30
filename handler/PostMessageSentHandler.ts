@@ -21,8 +21,9 @@ import {
     sendMessageInChannel,
     updateMessageText,
 } from "../utils/Messages";
-import { generateResponse } from "../utils/GeminiModel";
 import { ActionTypeEnum } from "../definitions/ActionTypeEnum";
+import { generateResponse } from "../utils/GeminiModel";
+import { createTextCompletionGroq } from "../utils/GroqModels";
 
 interface CheckConditionResponse {
     condition_met: boolean;
@@ -72,7 +73,10 @@ export class PostMessageSentHandler implements IPostMessageSent {
                     if (!text.includes(response.data.trigger.condition))
                         continue;
 
-                    if (response.data.response.action === ActionTypeEnum.DELETE_MESSAGE) {
+                    if (
+                        response.data.response.action ===
+                        ActionTypeEnum.DELETE_MESSAGE
+                    ) {
                         const isDeleted = await deleteMessage(
                             modify,
                             message,
@@ -82,7 +86,8 @@ export class PostMessageSentHandler implements IPostMessageSent {
 
                     if (response.data.response.message) {
                         if (
-                            response.data.response.action === ActionTypeEnum.SEND_MESSAGE_IN_DM
+                            response.data.response.action ===
+                            ActionTypeEnum.SEND_MESSAGE_IN_DM
                         ) {
                             await sendDirectMessage(
                                 read,
@@ -91,7 +96,8 @@ export class PostMessageSentHandler implements IPostMessageSent {
                                 response.data.response.message
                             );
                         } else if (
-                            response.data.response.action === ActionTypeEnum.SEND_MESSAGE_IN_CHANNEL
+                            response.data.response.action ===
+                            ActionTypeEnum.SEND_MESSAGE_IN_CHANNEL
                         ) {
                             await sendMessageInChannel(
                                 modify,
@@ -123,11 +129,12 @@ export class PostMessageSentHandler implements IPostMessageSent {
                     text,
                     response.data.trigger.condition
                 );
-                const checkConditionPromptByLLM = await generateResponse(
-                    read,
-                    http,
-                    checkConditionPrompt
-                );
+                const checkConditionPromptByLLM =
+                    await createTextCompletionGroq(
+                        read,
+                        http,
+                        checkConditionPrompt
+                    );
 
                 const checkConditionResponse: CheckConditionResponse =
                     typeof checkConditionPromptByLLM === "string"
@@ -137,7 +144,10 @@ export class PostMessageSentHandler implements IPostMessageSent {
                 if (!checkConditionResponse.condition_met) continue;
                 if (checkConditionResponse.confidence < 75) continue;
 
-                if (response.data.response.action === ActionTypeEnum.DELETE_MESSAGE) {
+                if (
+                    response.data.response.action ===
+                    ActionTypeEnum.DELETE_MESSAGE
+                ) {
                     const isDeleted = await deleteMessage(
                         modify,
                         message,
@@ -148,10 +158,14 @@ export class PostMessageSentHandler implements IPostMessageSent {
                 const messageToSend = response.data.response.message;
                 if (!messageToSend) continue;
 
-                if (response.data.response.action === ActionTypeEnum.SEND_MESSAGE_IN_DM) {
+                if (
+                    response.data.response.action ===
+                    ActionTypeEnum.SEND_MESSAGE_IN_DM
+                ) {
                     await sendDirectMessage(read, modify, user, messageToSend);
                 } else if (
-                    response.data.response.action === ActionTypeEnum.SEND_MESSAGE_IN_CHANNEL
+                    response.data.response.action ===
+                    ActionTypeEnum.SEND_MESSAGE_IN_CHANNEL
                 ) {
                     await sendMessageInChannel(
                         modify,
@@ -159,16 +173,20 @@ export class PostMessageSentHandler implements IPostMessageSent {
                         room,
                         messageToSend
                     );
-                } else if (response.data.response.action === ActionTypeEnum.EDIT_MESSAGE) {
+                } else if (
+                    response.data.response.action ===
+                    ActionTypeEnum.EDIT_MESSAGE
+                ) {
                     const editMessagePrompt = createEditMessagePrompt(
                         response.data.command,
                         text
                     );
-                    const editMessagePromptByLLM = await generateResponse(
-                        read,
-                        http,
-                        editMessagePrompt
-                    );
+                    const editMessagePromptByLLM =
+                        await createTextCompletionGroq(
+                            read,
+                            http,
+                            editMessagePrompt
+                        );
 
                     const editMessageResponse: EditMessageResponse = {
                         message: editMessagePromptByLLM,
