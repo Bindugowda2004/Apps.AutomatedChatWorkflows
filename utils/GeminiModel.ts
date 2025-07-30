@@ -1,6 +1,6 @@
 import { IHttp, IRead } from "@rocket.chat/apps-engine/definition/accessors";
 
-export async function generateResponse(
+export async function createTextCompletionGemini(
     read: IRead,
     http: IHttp,
     prompt: string

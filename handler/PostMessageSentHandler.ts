@@ -22,7 +22,7 @@ import {
     updateMessageText,
 } from "../utils/Messages";
 import { ActionTypeEnum } from "../definitions/ActionTypeEnum";
-import { generateResponse } from "../utils/GeminiModel";
+import { createTextCompletionGemini } from "../utils/GeminiModel";
 import { createTextCompletionGroq } from "../utils/GroqModels";
 
 interface CheckConditionResponse {

@@ -30,7 +30,7 @@ import {
     setUserQuestions,
     setUserStep,
 } from "../utils/PersistenceMethods";
-import { generateResponse } from "../utils/GeminiModel";
+import { createTextCompletionGemini } from "../utils/GeminiModel";
 import { MessageEnum } from "../definitions/MessageEnum";
 import { createTextCompletionGroq } from "../utils/GroqModels";
 
