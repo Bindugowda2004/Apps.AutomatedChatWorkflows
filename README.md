@@ -81,6 +81,8 @@ Whenever a message is posted that contains a four-letter word starting with the 
 
 If you like this project, please leave a star ⭐️. This helps more people to know this project.
 
+---
+
 ## 🧾 Getting Started
 
 ### Requirements
@@ -169,6 +171,8 @@ rc-apps deploy --url http://localhost:3000 --username dhairyashil --password Pas
 <img src="https://open-source-assets.middlewarehq.com/svgs/RocketChat-Apps.AutomatedChatWorkflows-contributor-metrics-dark-widget.svg?caching=true"></img>
 </a>
 </div> -->
+
+---
 
 ### Contributors
 
