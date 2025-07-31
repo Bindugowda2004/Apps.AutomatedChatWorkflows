@@ -1,6 +1,7 @@
 import { IHttp, IRead } from "@rocket.chat/apps-engine/definition/accessors";
+import { SettingEnum } from "../settings/settings";
 
-export async function generateResponse(
+export async function createTextCompletionGemini(
     read: IRead,
     http: IHttp,
     prompt: string
@@ -8,10 +9,10 @@ export async function generateResponse(
     const geminiApiKey = await read
         .getEnvironmentReader()
         .getSettings()
-        .getValueById("gemini-api-key-id");
+        .getValueById(SettingEnum.ID_GEMINI_API_KEY);
 
     if (!geminiApiKey) {
-        throw new Error("Gemini API key not configured.");
+        throw new Error("geminiApiKey not configured.");
     }
 
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
@@ -41,8 +42,6 @@ export async function generateResponse(
     } else if (text.startsWith("```") && text.endsWith("```")) {
         text = text.slice(3, -3).trim(); // Remove ``` and ```
     }
-
-    console.log("==== LLM Response : " + text);
 
     return text;
 }

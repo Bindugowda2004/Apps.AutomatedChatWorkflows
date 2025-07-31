@@ -22,7 +22,7 @@ export async function sendNotification(
     user: IUser,
     room: IRoom,
     message: string,
-    blocks?: BlockBuilder
+    threadId?: string,
 ): Promise<void> {
     const appUser = (await read.getUserReader().getAppUser()) as IUser;
 
@@ -33,8 +33,8 @@ export async function sendNotification(
         .setRoom(room)
         .setText(message);
 
-    if (blocks) {
-        msg.setBlocks(blocks);
+    if (threadId) {
+        msg.setThreadId(threadId)
     }
 
     return read.getNotifier().notifyUser(user, msg.getMessage());

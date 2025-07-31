@@ -1,11 +1,19 @@
-import { IHttp, IModify, IPersistence, IRead } from '@rocket.chat/apps-engine/definition/accessors';
-import { ISlashCommand, SlashCommandContext } from '@rocket.chat/apps-engine/definition/slashcommands';
-import { AiChatWorkflowsAutomationApp } from '../AiChatWorkflowsAutomationApp';
-import { CommandUtility } from '../utils/CommandUtility';
+import {
+    IHttp,
+    IModify,
+    IPersistence,
+    IRead,
+} from "@rocket.chat/apps-engine/definition/accessors";
+import {
+    ISlashCommand,
+    SlashCommandContext,
+} from "@rocket.chat/apps-engine/definition/slashcommands";
+import { AiChatWorkflowsAutomationApp } from "../AiChatWorkflowsAutomationApp";
+import { CommandUtility } from "../utils/CommandUtility";
 
 export class ChatAutomationCreate implements ISlashCommand {
     public constructor(private readonly app: AiChatWorkflowsAutomationApp) {}
-    
+
     public command = "chat-automation-create";
     public i18nDescription = "Create automated workflows based on keywords";
     public providesPreview = false;

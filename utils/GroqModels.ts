@@ -1,4 +1,5 @@
 import { IHttp, IRead } from "@rocket.chat/apps-engine/definition/accessors";
+import { SettingEnum } from "../settings/settings";
 
 export async function createTextCompletionGroq(
     read: IRead,
@@ -8,17 +9,25 @@ export async function createTextCompletionGroq(
     const apiKeyGroq = await read
         .getEnvironmentReader()
         .getSettings()
-        .getValueById("groq-api-key-id");
+        .getValueById(SettingEnum.ID_GROQ_API_KEY);
+
+    if (!apiKeyGroq) {
+        throw new Error("apiKeyGroq not configured.");
+    }
 
     const url = `https://api.groq.com/openai/v1`;
 
-    const model = await read
+    const groqModel = await read
         .getEnvironmentReader()
         .getSettings()
-        .getValueById("groq-model");
+        .getValueById(SettingEnum.ID_GROQ_MODEL);
+
+    if (!groqModel) {
+        throw new Error("groqModel not configured.");
+    }
 
     const body = {
-        model,
+        groqModel,
         messages: [
             {
                 role: "system",

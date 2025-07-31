@@ -1,18 +1,25 @@
 import { IHttp, IRead } from "@rocket.chat/apps-engine/definition/accessors";
+import { SettingEnum } from "../settings/settings";
 
-export async function createTextCompletion(
+
+export async function createTextCompletionRocketChat(
     read: IRead,
     http: IHttp,
     prompt: string
 ): Promise<string> {
-    const model = await read
+    const rcModel = await read
         .getEnvironmentReader()
         .getSettings()
-        .getValueById("model");
-    const url = `http://${model}/v1`;
+        .getValueById(SettingEnum.ID_RC_MODEL);
+
+    if (!rcModel) {
+        throw new Error("rcModel not configured.");
+    }
+
+    const url = `http://${rcModel}/v1`;
 
     const body = {
-        model,
+        rcModel,
         messages: [
             {
                 role: "system",
