@@ -22,8 +22,7 @@ import {
     updateMessageText,
 } from "../utils/Messages";
 import { ActionTypeEnum } from "../definitions/ActionTypeEnum";
-import { createTextCompletionGemini } from "../utils/GeminiModel";
-import { createTextCompletionGroq } from "../utils/GroqModels";
+import { createTextCompletion } from "../utils/AIProvider";
 
 interface CheckConditionResponse {
     condition_met: boolean;
@@ -130,7 +129,7 @@ export class PostMessageSentHandler implements IPostMessageSent {
                     response.data.trigger.condition
                 );
                 const checkConditionPromptByLLM =
-                    await createTextCompletionGroq(
+                    await createTextCompletion(
                         read,
                         http,
                         checkConditionPrompt
@@ -182,7 +181,7 @@ export class PostMessageSentHandler implements IPostMessageSent {
                         text
                     );
                     const editMessagePromptByLLM =
-                        await createTextCompletionGroq(
+                        await createTextCompletion(
                             read,
                             http,
                             editMessagePrompt

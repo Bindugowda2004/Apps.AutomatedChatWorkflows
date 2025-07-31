@@ -30,9 +30,9 @@ import {
     setUserQuestions,
     setUserStep,
 } from "../utils/PersistenceMethods";
-import { createTextCompletionGemini } from "../utils/GeminiModel";
 import { MessageEnum } from "../definitions/MessageEnum";
-import { createTextCompletionGroq } from "../utils/GroqModels";
+import { formatWorkflowDetails } from "../utils/FormatWorkflowMessage";
+import { createTextCompletion } from "../utils/AIProvider";
 
 interface CommandPromptResponse {
     workflow_identification_valid: boolean;
@@ -88,119 +88,106 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
         // Get a user's step
         const currentStep = await getUserStep(read, user.id);
         if (currentStep && currentStep === "clarification") {
-            const questionsArr = await getUserQuestions(read, user.id);
-            if (!questionsArr) return;
+            if (!threadId) {
+                await clearUserCommand(persistence, user.id);
+                await clearUserStep(persistence, user.id);
+                await clearUserQuestions(persistence, user.id);
+            } else {
+                const questionsArr = await getUserQuestions(read, user.id);
+                if (!questionsArr) return;
 
-            const answerIdentificationPrompt = createAnswerIdentificationPrompt(
-                questionsArr,
-                text
-            );
-            const answerIdentificationPromptByLLM =
-                await createTextCompletionGroq(
-                    read,
-                    http,
-                    answerIdentificationPrompt
-                );
-
-            const identificationResponse: IdentificationPromptResponse =
-                typeof answerIdentificationPromptByLLM === "string"
-                    ? JSON.parse(answerIdentificationPromptByLLM)
-                    : answerIdentificationPromptByLLM;
-
-            if (!identificationResponse.answer_identification_valid) {
-                if (threadId) {
-                    await sendThreadMessage(
+                const answerIdentificationPrompt =
+                    createAnswerIdentificationPrompt(questionsArr, text);
+                const answerIdentificationPromptByLLM =
+                    await createTextCompletion(
                         read,
-                        modify,
-                        appUser,
-                        room,
-                        identificationResponse.message ||
-                            "Please answer all the questions again",
-                        threadId
+                        http,
+                        answerIdentificationPrompt
                     );
+
+                const identificationResponse: IdentificationPromptResponse =
+                    typeof answerIdentificationPromptByLLM === "string"
+                        ? JSON.parse(answerIdentificationPromptByLLM)
+                        : answerIdentificationPromptByLLM;
+
+                if (!identificationResponse.answer_identification_valid) {
+                    if (threadId) {
+                        await sendThreadMessage(
+                            read,
+                            modify,
+                            appUser,
+                            room,
+                            identificationResponse.message ||
+                                "Please answer all the questions again",
+                            threadId
+                        );
+                    }
+                    return;
                 }
-                return;
-            }
 
-            if (!identificationResponse.response) return;
+                if (!identificationResponse.response) return;
 
-            const currentCommand = await getUserCommand(read, user.id);
-            if (!currentCommand) return;
+                const currentCommand = await getUserCommand(read, user.id);
+                if (!currentCommand) return;
 
-            const automationCommandCreationPrompt =
-                createAutomationCommandCreationPrompt(
-                    currentCommand,
-                    identificationResponse.response?.questions,
-                    identificationResponse.response?.answers
+                const automationCommandCreationPrompt =
+                    createAutomationCommandCreationPrompt(
+                        currentCommand,
+                        identificationResponse.response?.questions,
+                        identificationResponse.response?.answers
+                    );
+
+                const automationCommandCreationPromptByLLM =
+                    await createTextCompletion(
+                        read,
+                        http,
+                        automationCommandCreationPrompt
+                    );
+
+                const commandCreationResponse: CommandCreationResponse = {
+                    command: automationCommandCreationPromptByLLM,
+                };
+
+                const structuredParsingPrompt = createStructuredParsingPrompt(
+                    commandCreationResponse.command
+                );
+                const structuredParsingPromptByLLM =
+                    await createTextCompletion(
+                        read,
+                        http,
+                        structuredParsingPrompt
+                    );
+
+                const structuredParsingResponse: StructuredParsingResponse =
+                    typeof structuredParsingPromptByLLM === "string"
+                        ? JSON.parse(structuredParsingPromptByLLM)
+                        : structuredParsingPromptByLLM;
+
+                if (!structuredParsingResponse) return;
+
+                const responseToSave = {
+                    command: commandCreationResponse.command,
+                    ...structuredParsingResponse,
+                };
+
+                const workflowId = await saveTriggerResponse(
+                    persistence,
+                    responseToSave,
+                    user.id,
+                    true,
+                    true,
+                    true
                 );
 
-            const automationCommandCreationPromptByLLM =
-                await createTextCompletionGroq(
-                    read,
-                    http,
-                    automationCommandCreationPrompt
+                await clearUserCommand(persistence, user.id);
+                await clearUserStep(persistence, user.id);
+                await clearUserQuestions(persistence, user.id);
+
+                const workflowDetails = formatWorkflowDetails(
+                    responseToSave,
+                    workflowId
                 );
 
-            const commandCreationResponse: CommandCreationResponse = {
-                command: automationCommandCreationPromptByLLM,
-            };
-
-            const structuredParsingPrompt = createStructuredParsingPrompt(
-                commandCreationResponse.command
-            );
-            const structuredParsingPromptByLLM = await createTextCompletionGroq(
-                read,
-                http,
-                structuredParsingPrompt
-            );
-
-            const structuredParsingResponse: StructuredParsingResponse =
-                typeof structuredParsingPromptByLLM === "string"
-                    ? JSON.parse(structuredParsingPromptByLLM)
-                    : structuredParsingPromptByLLM;
-
-            if (!structuredParsingResponse) return;
-
-            const responseToSave = {
-                command: commandCreationResponse.command,
-                ...structuredParsingResponse,
-            };
-
-            const workflowId = await saveTriggerResponse(
-                persistence,
-                responseToSave,
-                user.id,
-                true,
-                true,
-                true
-            );
-
-            await clearUserCommand(persistence, user.id);
-            await clearUserStep(persistence, user.id);
-            await clearUserQuestions(persistence, user.id);
-
-            const workflowDetails = `*Command*: ${responseToSave.command}
-            *Trigger*
-                - *User*: ${
-                    responseToSave.trigger.user
-                        ? responseToSave.trigger.user
-                        : "All Users"
-                }
-                - *Channel*: ${
-                    responseToSave.trigger.channel
-                        ? responseToSave.trigger.channel
-                        : "All Channels"
-                }
-            *Condition*: ${responseToSave.trigger.condition}
-            *Action*: ${responseToSave.response.action}
-            *Message*: ${
-                responseToSave.response.message
-                    ? responseToSave.response.message
-                    : "N/A"
-            }
-            *WorkflowId*: ${workflowId}`;
-
-            if (threadId) {
                 await sendThreadMessage(
                     read,
                     modify,
@@ -218,131 +205,58 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
                     threadId
                 );
             }
-        } else {
-            if (threadId) return;
+        }
 
-            const validCommandPrompt = createValidCommandPrompt(text);
-            const validCommandPromptByLLM = await createTextCompletionGroq(
+        if (threadId) {
+            await sendDirectMessage(
                 read,
-                http,
-                validCommandPrompt
+                modify,
+                user,
+                `To create a new command, start a new message - do not reply in this thread.`
             );
+            return;
+        }
 
-            const response: CommandPromptResponse =
-                typeof validCommandPromptByLLM === "string"
-                    ? JSON.parse(validCommandPromptByLLM)
-                    : validCommandPromptByLLM;
+        const validCommandPrompt = createValidCommandPrompt(text);
+        const validCommandPromptByLLM = await createTextCompletion(
+            read,
+            http,
+            validCommandPrompt
+        );
 
-            // If the command in not valid
-            if (!response.workflow_identification_valid) {
-                await sendDirectMessage(read, modify, user, response.response);
-                return;
-            }
+        const response: CommandPromptResponse =
+            typeof validCommandPromptByLLM === "string"
+                ? JSON.parse(validCommandPromptByLLM)
+                : validCommandPromptByLLM;
 
-            const reasoningPrompt = createReasoningPrompt(text);
-            const reasoningPromptByLLM = await createTextCompletionGroq(
-                read,
-                http,
-                reasoningPrompt
-            );
+        // If the command in not valid
+        if (!response.workflow_identification_valid) {
+            await sendDirectMessage(read, modify, user, response.response);
+            return;
+        }
 
-            const reasoningResponse: ReasoningPromptResponse =
-                typeof reasoningPromptByLLM === "string"
-                    ? JSON.parse(reasoningPromptByLLM)
-                    : reasoningPromptByLLM;
+        const reasoningPrompt = createReasoningPrompt(text);
+        const reasoningPromptByLLM = await createTextCompletion(
+            read,
+            http,
+            reasoningPrompt
+        );
 
-            if (reasoningResponse.requires_clarification) {
-                const questionsArr = reasoningResponse.questions;
-                const questions = questionsArr.join("\n");
+        const reasoningResponse: ReasoningPromptResponse =
+            typeof reasoningPromptByLLM === "string"
+                ? JSON.parse(reasoningPromptByLLM)
+                : reasoningPromptByLLM;
 
-                await sendDirectMessage(
-                    read,
-                    modify,
-                    user,
-                    MessageEnum.CONTINUE_IN_THREAD_MESSAGE
-                );
-
-                const messages: IMessageRaw[] = await read
-                    .getRoomReader()
-                    .getMessages(room.id, {
-                        limit: Math.min(1),
-                        sort: { createdAt: "desc" },
-                    });
-
-                const newThreadId = messages[0]?.id;
-                if (newThreadId) {
-                    await sendThreadMessage(
-                        read,
-                        modify,
-                        appUser,
-                        room,
-                        questions,
-                        newThreadId
-                    );
-
-                    // call persistence method - set values
-                    await setUserCommand(persistence, user.id, text);
-                    await setUserStep(persistence, user.id, "clarification");
-                    await setUserQuestions(persistence, user.id, questionsArr);
-                    return;
-                }
-            }
-
-            const structuredParsingPrompt = createStructuredParsingPrompt(text);
-            const structuredParsingPromptByLLM = await createTextCompletionGroq(
-                read,
-                http,
-                structuredParsingPrompt
-            );
-
-            const structuredParsingResponse: StructuredParsingResponse =
-                typeof structuredParsingPromptByLLM === "string"
-                    ? JSON.parse(structuredParsingPromptByLLM)
-                    : structuredParsingPromptByLLM;
-
-            if (!structuredParsingResponse) return;
-
-            const responseToSave = {
-                command: text,
-                ...structuredParsingResponse,
-            };
+        if (reasoningResponse.requires_clarification) {
+            const questionsArr = reasoningResponse.questions;
+            const questions = questionsArr.join("\n");
 
             await sendDirectMessage(
                 read,
                 modify,
                 user,
-                MessageEnum.SUCCESS_MESSAGE_APP_DM_DIRECT
+                MessageEnum.CONTINUE_IN_THREAD_MESSAGE
             );
-
-            const workflowId = await saveTriggerResponse(
-                persistence,
-                responseToSave,
-                user.id,
-                true,
-                true,
-                true
-            );
-
-            const workflowDetails = `*Command*: ${responseToSave.command}
-            *Trigger*
-                - *User*: ${
-                    responseToSave.trigger.user
-                        ? responseToSave.trigger.user
-                        : "All Users"
-                }
-                - *Channel*: ${
-                    responseToSave.trigger.channel
-                        ? responseToSave.trigger.channel
-                        : "All Channels"
-                }
-            *Condition*: ${responseToSave.trigger.condition}
-            *Action*: ${responseToSave.response.action}
-            *Message*: ${
-                responseToSave.response.message
-                    ? responseToSave.response.message
-                    : "N/A"
-            }
-            *WorkflowId*: ${workflowId}`;
 
             const messages: IMessageRaw[] = await read
                 .getRoomReader()
@@ -358,10 +272,75 @@ export class PostMessageSentToBotHandler implements IPostMessageSentToBot {
                     modify,
                     appUser,
                     room,
-                    workflowDetails,
+                    questions,
                     newThreadId
                 );
+
+                // call persistence method - set values
+                await setUserCommand(persistence, user.id, text);
+                await setUserStep(persistence, user.id, "clarification");
+                await setUserQuestions(persistence, user.id, questionsArr);
+                return;
             }
+        }
+
+        const structuredParsingPrompt = createStructuredParsingPrompt(text);
+        const structuredParsingPromptByLLM = await createTextCompletion(
+            read,
+            http,
+            structuredParsingPrompt
+        );
+
+        const structuredParsingResponse: StructuredParsingResponse =
+            typeof structuredParsingPromptByLLM === "string"
+                ? JSON.parse(structuredParsingPromptByLLM)
+                : structuredParsingPromptByLLM;
+
+        if (!structuredParsingResponse) return;
+
+        const responseToSave = {
+            command: text,
+            ...structuredParsingResponse,
+        };
+
+        await sendDirectMessage(
+            read,
+            modify,
+            user,
+            MessageEnum.SUCCESS_MESSAGE_APP_DM_DIRECT
+        );
+
+        const workflowId = await saveTriggerResponse(
+            persistence,
+            responseToSave,
+            user.id,
+            true,
+            true,
+            true
+        );
+
+        const workflowDetails = formatWorkflowDetails(
+            responseToSave,
+            workflowId
+        );
+
+        const messages: IMessageRaw[] = await read
+            .getRoomReader()
+            .getMessages(room.id, {
+                limit: Math.min(1),
+                sort: { createdAt: "desc" },
+            });
+
+        const newThreadId = messages[0]?.id;
+        if (newThreadId) {
+            await sendThreadMessage(
+                read,
+                modify,
+                appUser,
+                room,
+                workflowDetails,
+                newThreadId
+            );
         }
     }
 }
